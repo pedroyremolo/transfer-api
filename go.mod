@@ -1,1 +1,3 @@
-module "github.com/pedroyremolo/transfer-api"
+module github.com/pedroyremolo/transfer-api
+
+go 1.15
