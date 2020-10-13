@@ -5,13 +5,16 @@ import (
 	"time"
 )
 
+var zeroTime = time.Time{}
+
 func TestAddAccount(t *testing.T) {
-	zeroTime := time.Time{}
+
 	a := Account{
-		Name:    "Gopher",
-		CPF:     "11111111030",
-		Secret:  "g0rul&zz",
-		Balance: 8000.00,
+		Name:      "Gopher",
+		CPF:       "11111111030",
+		Secret:    []byte("g0rul&zz"),
+		Balance:   8000.00,
+		CreatedAt: time.Time{},
 	}
 
 	mockRepo := new(mockStorage)
