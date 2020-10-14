@@ -1,6 +1,8 @@
 package adding
 
 import (
+	"context"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"testing"
 	"time"
 )
@@ -19,8 +21,8 @@ func TestAddAccount(t *testing.T) {
 
 	mockRepo := new(mockStorage)
 	s := NewService(mockRepo)
-
-	err := s.AddAccount(a)
+	ctx := context.TODO()
+	id, err := s.AddAccount(ctx, a)
 
 	if err != nil {
 		t.Errorf("Expected nil, got %s", err)
@@ -29,14 +31,19 @@ func TestAddAccount(t *testing.T) {
 	if mockRepo.a.CreatedAt == zeroTime {
 		t.Errorf("Expected account with CreatedAt near %s, got %s", time.Now().UTC(), mockRepo.a.CreatedAt)
 	}
+
+	if id != mockRepo.oid.Hex() {
+		t.Errorf("Expected id %s, got %s", id, mockRepo.oid.Hex())
+	}
 }
 
 type mockStorage struct {
-	a Account
+	a   Account
+	oid primitive.ObjectID
 }
 
-func (m *mockStorage) AddAccount(account Account) error {
+func (m *mockStorage) AddAccount(_ context.Context, account Account) (string, error) {
 	m.a = account
-
-	return nil
+	m.oid = primitive.NewObjectID()
+	return m.oid.Hex(), nil
 }

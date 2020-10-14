@@ -1,23 +1,26 @@
 package adding
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type Service interface {
-	AddAccount(account Account) error
+	AddAccount(ctx context.Context, account Account) (string, error)
 }
 
 type Repository interface {
-	AddAccount(account Account) error
+	AddAccount(ctx context.Context, account Account) (string, error)
 }
 
 type service struct {
 	r Repository
 }
 
-func (s *service) AddAccount(account Account) error {
+func (s *service) AddAccount(ctx context.Context, account Account) (string, error) {
 	account.CreatedAt = time.Now().UTC()
-	err := s.r.AddAccount(account)
-	return err
+	id, err := s.r.AddAccount(ctx, account)
+	return id, err
 }
 
 func NewService(r Repository) Service {
