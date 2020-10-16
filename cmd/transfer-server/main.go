@@ -23,6 +23,7 @@ func main() {
 
 	dbCtx := context.Background()
 	storage.Connect(dbCtx)
+	storage.CreateIndexes(dbCtx)
 	defer storage.Disconnect(dbCtx)
 
 	adder = adding.NewService(storage)

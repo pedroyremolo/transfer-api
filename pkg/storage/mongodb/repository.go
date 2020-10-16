@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -15,16 +16,24 @@ type Storage struct {
 	client *mongo.Client
 }
 
+const (
+	accountsCollection = "accounts"
+)
+
 var (
 	databaseName = os.Getenv("APP_DOCUMENT_DB_NAME")
 	username     = os.Getenv("APP_DOCUMENT_DB_USERNAME")
 	password     = os.Getenv("APP_DOCUMENT_DB_SECRET")
 	host         = os.Getenv("APP_DOCUMENT_DB_HOST")
 	port         = os.Getenv("APP_DOCUMENT_DB_PORT")
-)
-
-const (
-	accountsCollection = "accounts"
+	indexMap     = map[string][]mongo.IndexModel{
+		accountsCollection: {
+			{
+				Keys:    bson.M{"cpf": 1},
+				Options: options.Index().SetUnique(true),
+			},
+		},
+	}
 )
 
 func NewStorageFromEnv() (*Storage, error) {
@@ -51,8 +60,22 @@ func (s *Storage) Connect(ctx context.Context) {
 }
 
 func (s *Storage) Disconnect(ctx context.Context) {
-	if err := s.client.Disconnect(ctx); err != nil {
+	disconnectCtx, cancel := context.WithTimeout(ctx, time.Second*15)
+	defer cancel()
+	if err := s.client.Disconnect(disconnectCtx); err != nil {
 		panic(err)
+	}
+}
+
+func (s *Storage) CreateIndexes(ctx context.Context) {
+	db := s.client.Database(databaseName)
+	indexCtx, cancel := context.WithTimeout(ctx, time.Second*15)
+	defer cancel()
+	for collName, indexes := range indexMap {
+		_, err := db.Collection(collName).Indexes().CreateMany(indexCtx, indexes)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
