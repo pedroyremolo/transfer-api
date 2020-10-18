@@ -3,6 +3,7 @@ module github.com/pedroyremolo/transfer-api
 go 1.15
 
 require (
+	github.com/Nhanderu/brdoc v1.1.2
 	github.com/aws/aws-sdk-go v1.35.7 // indirect
 	github.com/golang/snappy v0.0.2 // indirect
 	github.com/julienschmidt/httprouter v1.3.0

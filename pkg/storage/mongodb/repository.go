@@ -87,7 +87,7 @@ func (s *Storage) AddAccount(ctx context.Context, account adding.Account) (strin
 	dbAccount := Account{
 		ID:        primitive.NewObjectID(),
 		Name:      account.Name,
-		CPF:       account.CPF,
+		CPF:       string(account.CPF),
 		Secret:    string(account.Secret),
 		Balance:   account.Balance,
 		CreatedAt: account.CreatedAt,
