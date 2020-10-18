@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -102,4 +103,23 @@ func (s *Storage) AddAccount(ctx context.Context, account adding.Account) (strin
 		return "", ErrCPFAlreadyExists
 	}
 	return oid.InsertedID.(primitive.ObjectID).Hex(), err
+}
+
+func (s *Storage) GetAccountByID(ctx context.Context, id string) (listing.Account, error) {
+	collection := s.client.Database(databaseName).Collection(accountsCollection)
+	queryContext, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	var account Account
+	result := collection.FindOne(queryContext, bson.D{{"_id", id}})
+	if err := result.Decode(&account); err != nil {
+		// TODO Improve err handling
+		return listing.Account{}, err
+	}
+	return listing.Account{
+		Name:    account.Name,
+		CPF:     account.CPF,
+		Secret:  account.Secret,
+		Balance: account.Balance,
+	}, nil
 }
