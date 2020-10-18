@@ -5,23 +5,22 @@ import (
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
-	"io"
 	"log"
 	"net/http"
 )
 
 type ErrorResponse struct {
-	StatusCode int    `json:"status_code"`
+	StatusCode int    `json:"statusCode"`
 	Message    string `json:"message"`
 }
 
-func setJSONError(err error, status int, w io.Writer) {
+func setJSONError(err error, status int, w http.ResponseWriter) {
 	log.Println(err.Error())
 	response := ErrorResponse{
 		StatusCode: status,
 		Message:    err.Error(),
 	}
-
+	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(response)
 }
 
@@ -46,6 +45,10 @@ func addAccount(a adding.Service) func(w http.ResponseWriter, r *http.Request, _
 
 		id, err := a.AddAccount(ctx, account)
 		if err != nil {
+			if err.Error() == "this cpf could not be inserted in our DB" {
+				setJSONError(err, http.StatusBadRequest, w)
+				return
+			}
 			setJSONError(err, http.StatusInternalServerError, w)
 			return
 		}
