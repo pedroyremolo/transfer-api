@@ -18,6 +18,14 @@ func TestErrInvalidAccountField_Error(t *testing.T) {
 			want:      "Field cpf contains an invalid value: foo bar",
 			willPanic: false,
 		},
+		{
+			name: "When error with message but no field",
+			e: ErrInvalidAccountField{
+				message: "foo bar",
+			},
+			want:      "",
+			willPanic: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -30,6 +38,41 @@ func TestErrInvalidAccountField_Error(t *testing.T) {
 			}
 			if got := tt.e.Error(); got != tt.want {
 				t.Errorf("Error() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_name_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		n       name
+		input   []byte
+		wantErr bool
+	}{
+		{
+			name:    "When runs smoothly",
+			n:       "",
+			input:   []byte(`"Chewbacca Solo"`),
+			wantErr: false,
+		},
+		{
+			name:    "When name is an empty string",
+			n:       "",
+			input:   []byte(`""`),
+			wantErr: true,
+		},
+		{
+			name:    "When name is not a string",
+			n:       "",
+			input:   []byte(`56416`),
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.n.UnmarshalJSON(tt.input); (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -105,6 +148,41 @@ func Test_secret_UnmarshalJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := tt.s.UnmarshalJSON(tt.input); (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_balance_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		b       balance
+		input   []byte
+		wantErr bool
+	}{
+		{
+			name:    "When runs smoothly",
+			b:       0,
+			input:   []byte(`42.42`),
+			wantErr: false,
+		},
+		{
+			name:    "When input is a negative number",
+			b:       0,
+			input:   []byte(`-42.42`),
+			wantErr: true,
+		},
+		{
+			name:    "When input is not of numeric type",
+			b:       0,
+			input:   []byte(`"abc"`),
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.b.UnmarshalJSON(tt.input); (err != nil) != tt.wantErr {
 				t.Errorf("UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

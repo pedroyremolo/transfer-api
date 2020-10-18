@@ -10,18 +10,45 @@ import (
 
 // Account is the representation of an account to be added
 type Account struct {
-	Name      string  `json:"name"`
+	Name      name    `json:"name"`
 	CPF       cpf     `json:"cpf"`
 	Secret    secret  `json:"secret"`
-	Balance   float64 `json:"balance"`
+	Balance   balance `json:"balance"`
 	CreatedAt time.Time
 }
 
-// cpf represents the brazilian id
-type cpf string
+type (
+	// name represents the user Full Name
+	name string
+	// cpf represents the brazilian id
+	cpf string
+	// secret represents the user authentication Password
+	secret []byte
+	// balance represents the initial account Balance
+	balance float64
+)
 
-// secret represents the user authentication password
-type secret []byte
+func (n *name) UnmarshalJSON(b []byte) error {
+	var fullName string
+
+	if err := json.Unmarshal(b, &fullName); err != nil {
+		// TODO Err logging
+		return &ErrInvalidAccountField{
+			field:   "name",
+			message: "name is not of string type",
+		}
+	}
+
+	if len(fullName) == 0 {
+		return &ErrInvalidAccountField{
+			field:   "name",
+			message: "name must be informed, therefore should not be empty",
+		}
+	}
+
+	*n = name(fullName)
+	return nil
+}
 
 // UnmarshalJSON Unmarshaler implementation that takes the string and verify it's a valid CPF
 func (c *cpf) UnmarshalJSON(b []byte) error {
@@ -71,11 +98,32 @@ func (s *secret) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (bc *balance) UnmarshalJSON(b []byte) error {
+	var incomingBalance float64
+	if err := json.Unmarshal(b, &incomingBalance); err != nil {
+		// TODO Err logging
+		return &ErrInvalidAccountField{
+			field:   "balance",
+			message: "the informed balance is not a number",
+		}
+	}
+	if incomingBalance < 0 {
+		return &ErrInvalidAccountField{
+			field:   "balance",
+			message: "can't start an account with negative balance",
+		}
+	}
+	return nil
+}
+
 type ErrInvalidAccountField struct {
 	field   string
 	message string
 }
 
 func (e *ErrInvalidAccountField) Error() string {
+	if e.field == "" {
+		panic("ErrInvalidAccountField.Error usage without field")
+	}
 	return fmt.Sprintf("Field %s contains an invalid value: %s", e.field, e.message)
 }
