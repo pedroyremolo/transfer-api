@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,6 +20,8 @@ type Storage struct {
 const (
 	accountsCollection = "accounts"
 )
+
+var ErrCPFAlreadyExists = errors.New("this cpf could not be inserted in our DB")
 
 var (
 	databaseName = os.Getenv("APP_DOCUMENT_DB_NAME")
@@ -95,7 +98,8 @@ func (s *Storage) AddAccount(ctx context.Context, account adding.Account) (strin
 
 	oid, err := collection.InsertOne(insertionCtx, dbAccount)
 	if err != nil {
-		return "", err
+		// TODO Err logging
+		return "", ErrCPFAlreadyExists
 	}
 	return oid.InsertedID.(primitive.ObjectID).Hex(), err
 }
