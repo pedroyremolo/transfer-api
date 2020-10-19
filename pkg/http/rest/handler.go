@@ -5,8 +5,13 @@ import (
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"log"
 	"net/http"
+)
+
+const (
+	defaultContentType = "application/json"
 )
 
 type ErrorResponse struct {
@@ -35,7 +40,7 @@ func Handler(a adding.Service) http.Handler {
 func addAccount(a adding.Service) func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		decoder := json.NewDecoder(r.Body)
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", defaultContentType)
 		ctx := r.Context()
 		var account adding.Account
 		if err := decoder.Decode(&account); err != nil {
@@ -55,5 +60,22 @@ func addAccount(a adding.Service) func(w http.ResponseWriter, r *http.Request, _
 
 		w.Header().Set("Location", fmt.Sprintf("/%s", id))
 		w.WriteHeader(http.StatusCreated)
+	}
+}
+
+func getAccountBalanceByID(l listing.Service) func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		w.Header().Set("Content-Type", defaultContentType)
+		id := p.ByName("id")
+		ctx := r.Context()
+
+		balance, err := l.GetAccountBalanceByID(ctx, id)
+		if err != nil {
+			setJSONError(err, http.StatusInternalServerError, w)
+			return
+		}
+
+		_ = json.NewEncoder(w).Encode(listing.Account{Balance: balance})
+		w.WriteHeader(http.StatusOK)
 	}
 }
