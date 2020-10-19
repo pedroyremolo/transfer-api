@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -14,8 +16,9 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-	s := &mockAddingService{}
-	handler := Handler(s)
+	a := &mockAddingService{}
+	l := &mockListingService{}
+	handler := Handler(a, l)
 
 	if handler == nil {
 		t.Errorf("Expected an implementation of http.Handler, got %s", handler)
@@ -45,7 +48,7 @@ func TestAddAccount(t *testing.T) {
 		},
 		{
 			name:                "When the sent cpf is already into DB",
-			service:             &mockAddingService{Err: errors.New("this cpf could not be inserted in our DB")},
+			service:             &mockAddingService{Err: mongodb.ErrCPFAlreadyExists},
 			reqBodyJSON:         `{"name": "Jane Doe","cpf": "11111111030","secret": "254855","balance": 50.00}`,
 			expectedStatus:      http.StatusBadRequest,
 			expectedErrResponse: `{"statusCode":400,"message":"this cpf could not be inserted in our DB"}`,
@@ -68,15 +71,17 @@ func TestAddAccount(t *testing.T) {
 			}
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest("POST", "/accounts", jsonBuffer)
+			r := httptest.NewRequest(http.MethodPost, "/accounts", jsonBuffer)
 			s := tc.service
 			h := addAccount(s)
+
 			h(w, r, nil)
+
 			if w.Code != tc.expectedStatus {
 				t.Errorf("Expected response status %v; got %v", tc.expectedStatus, w.Code)
 			}
 			if len(tc.expectedErrResponse) > 0 {
-				assertResponseErr(t, w, tc.expectedErrResponse)
+				assertResponseJSON(t, w, tc.expectedErrResponse)
 				return
 			}
 			if w.Header().Get("Location") != fmt.Sprintf("/%s", tc.service.ID) {
@@ -86,25 +91,84 @@ func TestAddAccount(t *testing.T) {
 	}
 }
 
+func TestGetAccountBalanceByID(t *testing.T) {
+	tt := []struct {
+		name             string
+		id               string
+		service          *mockListingService
+		expectedStatus   int
+		expectedResponse string
+	}{
+		{
+			name:             "When successfully returns",
+			id:               "a6sf46af6af",
+			service:          &mockListingService{Balance: 42.42},
+			expectedStatus:   http.StatusOK,
+			expectedResponse: `{"balance":42.42}`,
+		},
+		{
+			name:             "When no account was found with the given id",
+			id:               "a6sf46af6af",
+			service:          &mockListingService{Err: mongodb.ErrNoAccountWasFound},
+			expectedStatus:   http.StatusNotFound,
+			expectedResponse: `{"statusCode":404,"message":"no account was found with the given filter parameters"}`,
+		},
+		{
+			name:             "When unexpected errors inside the service occurs",
+			id:               "a6sf46af6af",
+			service:          &mockListingService{Err: errors.New("foo")},
+			expectedStatus:   http.StatusInternalServerError,
+			expectedResponse: `{"statusCode":500,"message":"foo"}`,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			target := fmt.Sprintf("/accounts/%s/balance", tc.id)
+			r := httptest.NewRequest(http.MethodGet, target, nil)
+			s := tc.service
+			h := getAccountBalanceByID(s)
+
+			h(w, r, httprouter.Params{{
+				Key:   "id",
+				Value: tc.id,
+			}})
+
+			if w.Code != tc.expectedStatus {
+				t.Errorf("Expected response status %v; got %v", tc.expectedStatus, w.Code)
+			}
+			assertResponseJSON(t, w, tc.expectedResponse)
+		})
+	}
+}
+
 type mockAddingService struct {
-	callCount int
-	ID        string
-	Err       error
+	ID  string
+	Err error
 }
 
 func (m *mockAddingService) AddAccount(_ context.Context, _ adding.Account) (string, error) {
-	m.callCount++
 	return m.ID, m.Err
 }
 
-func assertResponseErr(t *testing.T, w *httptest.ResponseRecorder, expectedErrResponse string) {
+type mockListingService struct {
+	Balance float64
+	Err     error
+}
+
+func (m *mockListingService) GetAccountBalanceByID(_ context.Context, _ string) (float64, error) {
+	return m.Balance, m.Err
+}
+
+func assertResponseJSON(t *testing.T, w *httptest.ResponseRecorder, expectedResponseJSON string) {
 	t.Helper()
 	respBodyBytes, err := ioutil.ReadAll(w.Body)
 	respBody := string(bytes.TrimSpace(respBodyBytes))
 	if err != nil {
 		t.Fatal("Unable to read response from Recorder")
 	}
-	if respBody != expectedErrResponse {
-		t.Errorf("Expected response error %s; got %s", expectedErrResponse, respBody)
+	if respBody != expectedResponseJSON {
+		t.Errorf("Expected response error %s; got %s", expectedResponseJSON, respBody)
 	}
 }

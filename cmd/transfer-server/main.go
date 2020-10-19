@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
 	"github.com/pedroyremolo/transfer-api/pkg/http/rest"
+	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
 	"log"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 
 func main() {
 	var adder adding.Service
+	var lister listing.Service
 	var port int
 
 	storage, err := mongodb.NewStorageFromEnv()
@@ -27,8 +29,9 @@ func main() {
 	defer storage.Disconnect(dbCtx)
 
 	adder = adding.NewService(storage)
+	lister = listing.NewService(storage)
 
-	handler := rest.Handler(adder)
+	handler := rest.Handler(adder, lister)
 	port, err = strconv.Atoi(os.Getenv("APP_PORT"))
 	portStr := fmt.Sprintf(":%d", port)
 	fmt.Printf("Starting server at port %s", portStr)

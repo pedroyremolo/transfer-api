@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -22,6 +23,7 @@ const (
 )
 
 var ErrCPFAlreadyExists = errors.New("this cpf could not be inserted in our DB")
+var ErrNoAccountWasFound = errors.New("no account was found with the given filter parameters")
 
 var (
 	databaseName = os.Getenv("APP_DOCUMENT_DB_NAME")
@@ -102,4 +104,29 @@ func (s *Storage) AddAccount(ctx context.Context, account adding.Account) (strin
 		return "", ErrCPFAlreadyExists
 	}
 	return oid.InsertedID.(primitive.ObjectID).Hex(), err
+}
+
+func (s *Storage) GetAccountByID(ctx context.Context, id string) (listing.Account, error) {
+	collection := s.client.Database(databaseName).Collection(accountsCollection)
+	queryContext, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	var account Account
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return listing.Account{}, ErrNoAccountWasFound
+	}
+	result := collection.FindOne(queryContext, bson.D{{"_id", oid}})
+	if err := result.Decode(&account); err != nil {
+		if err == mongo.ErrNoDocuments {
+			err = ErrNoAccountWasFound
+		}
+		return listing.Account{}, err
+	}
+	return listing.Account{
+		Name:    account.Name,
+		CPF:     account.CPF,
+		Secret:  account.Secret,
+		Balance: account.Balance,
+	}, nil
 }
