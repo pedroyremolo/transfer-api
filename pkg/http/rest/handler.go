@@ -35,6 +35,7 @@ func Handler(a adding.Service, l listing.Service) http.Handler {
 	router := httprouter.New()
 
 	router.POST("/accounts", addAccount(a))
+	router.GET("/accounts", getAccounts(l))
 	router.GET("/accounts/:id/balance", getAccountBalanceByID(l))
 
 	return router
