@@ -157,6 +157,7 @@ func (s *Storage) GetAccounts(ctx context.Context) ([]listing.Account, error) {
 		}
 
 		accounts = append(accounts, listing.Account{
+			ID:        a.ID.Hex(),
 			Name:      a.Name,
 			CPF:       a.CPF,
 			Secret:    a.Secret,

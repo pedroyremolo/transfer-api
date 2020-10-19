@@ -55,6 +55,7 @@ func TestService_GetAccounts(t *testing.T) {
 			repository: &mockListingRepository{
 				expectedAccounts: []Account{
 					{
+						ID:        "g4a68vf6a4g96ws84g",
 						Name:      "Monkey D. Luffy",
 						CPF:       "11111111030",
 						Secret:    "onepiece42",
@@ -62,6 +63,7 @@ func TestService_GetAccounts(t *testing.T) {
 						CreatedAt: &currentTime,
 					},
 					{
+						ID:        "8h964dsa6gb51qa98w1698",
 						Name:      "Harry Potter",
 						CPF:       "95360976055",
 						Secret:    "rh934h@",
