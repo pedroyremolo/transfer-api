@@ -113,6 +113,7 @@ func (bc *balance) UnmarshalJSON(b []byte) error {
 			message: "can't start an account with negative balance",
 		}
 	}
+	*bc = balance(incomingBalance)
 	return nil
 }
 
