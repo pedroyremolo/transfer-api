@@ -6,6 +6,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
+	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
 	"log"
 	"net/http"
 )
@@ -50,7 +51,7 @@ func addAccount(a adding.Service) func(w http.ResponseWriter, r *http.Request, _
 
 		id, err := a.AddAccount(ctx, account)
 		if err != nil {
-			if err.Error() == "this cpf could not be inserted in our DB" {
+			if err.Error() == mongodb.ErrCPFAlreadyExists.Error() {
 				setJSONError(err, http.StatusBadRequest, w)
 				return
 			}
@@ -71,6 +72,10 @@ func getAccountBalanceByID(l listing.Service) func(w http.ResponseWriter, r *htt
 
 		balance, err := l.GetAccountBalanceByID(ctx, id)
 		if err != nil {
+			if err.Error() == mongodb.ErrNoAccountWasFound.Error() {
+				setJSONError(err, http.StatusNotFound, w)
+				return
+			}
 			setJSONError(err, http.StatusInternalServerError, w)
 			return
 		}

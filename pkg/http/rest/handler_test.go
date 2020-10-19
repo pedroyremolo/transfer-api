@@ -46,7 +46,7 @@ func TestAddAccount(t *testing.T) {
 		},
 		{
 			name:                "When the sent cpf is already into DB",
-			service:             &mockAddingService{Err: errors.New("this cpf could not be inserted in our DB")},
+			service:             &mockAddingService{Err: mongodb.ErrCPFAlreadyExists},
 			reqBodyJSON:         `{"name": "Jane Doe","cpf": "11111111030","secret": "254855","balance": 50.00}`,
 			expectedStatus:      http.StatusBadRequest,
 			expectedErrResponse: `{"statusCode":400,"message":"this cpf could not be inserted in our DB"}`,
@@ -103,6 +103,20 @@ func TestGetAccountBalanceByID(t *testing.T) {
 			service:          &mockListingService{Balance: 42.42},
 			expectedStatus:   http.StatusOK,
 			expectedResponse: `{"balance":42.42}`,
+		},
+		{
+			name:             "When no account was found with the given id",
+			id:               "a6sf46af6af",
+			service:          &mockListingService{Err: mongodb.ErrNoAccountWasFound},
+			expectedStatus:   http.StatusNotFound,
+			expectedResponse: `{"statusCode":404,"message":"no account was found with the given filter parameters"}`,
+		},
+		{
+			name:             "When unexpected errors inside the service occurs",
+			id:               "a6sf46af6af",
+			service:          &mockListingService{Err: errors.New("foo")},
+			expectedStatus:   http.StatusInternalServerError,
+			expectedResponse: `{"statusCode":500,"message":"foo"}`,
 		},
 	}
 

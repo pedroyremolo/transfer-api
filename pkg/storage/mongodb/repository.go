@@ -23,6 +23,7 @@ const (
 )
 
 var ErrCPFAlreadyExists = errors.New("this cpf could not be inserted in our DB")
+var ErrNoAccountWasFound = errors.New("no account was found with the given filter parameters")
 
 var (
 	databaseName = os.Getenv("APP_DOCUMENT_DB_NAME")
@@ -111,9 +112,15 @@ func (s *Storage) GetAccountByID(ctx context.Context, id string) (listing.Accoun
 	defer cancel()
 
 	var account Account
-	result := collection.FindOne(queryContext, bson.D{{"_id", id}})
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return listing.Account{}, ErrNoAccountWasFound
+	}
+	result := collection.FindOne(queryContext, bson.D{{"_id", oid}})
 	if err := result.Decode(&account); err != nil {
-		// TODO Improve err handling
+		if err == mongo.ErrNoDocuments {
+			err = ErrNoAccountWasFound
+		}
 		return listing.Account{}, err
 	}
 	return listing.Account{
