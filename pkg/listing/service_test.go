@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestService_GetAccountBalanceByID(t *testing.T) {
@@ -43,9 +44,70 @@ func TestService_GetAccountBalanceByID(t *testing.T) {
 	}
 }
 
+func TestService_GetAccounts(t *testing.T) {
+	currentTime := time.Now().UTC()
+	tt := []struct {
+		name       string
+		repository *mockListingRepository
+	}{
+		{
+			name: "When runs smoothly",
+			repository: &mockListingRepository{
+				expectedAccounts: []Account{
+					{
+						Name:      "Monkey D. Luffy",
+						CPF:       "11111111030",
+						Secret:    "onepiece42",
+						Balance:   100000.00,
+						CreatedAt: &currentTime,
+					},
+					{
+						Name:      "Harry Potter",
+						CPF:       "95360976055",
+						Secret:    "rh934h@",
+						Balance:   40000.00,
+						CreatedAt: &currentTime,
+					},
+				},
+			},
+		},
+		{
+			name: "When no account was found",
+			repository: &mockListingRepository{
+				expectedAccounts: []Account{},
+			},
+		},
+		{
+			name: "When an error is emitted by repository",
+			repository: &mockListingRepository{
+				expectedAccounts: []Account{},
+				expectedError:    errors.New("foo"),
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			s := NewService(tc.repository)
+			accounts, err := s.GetAccounts(context.TODO())
+			if err != tc.repository.expectedError {
+				t.Errorf("Expected err %s; got %s", tc.repository.expectedError, err)
+			}
+			if len(accounts) != len(tc.repository.expectedAccounts) {
+				t.Errorf("Expected accounts %v; got %v", tc.repository.expectedAccounts, accounts)
+			}
+		})
+	}
+}
+
 type mockListingRepository struct {
-	expectedAccount Account
-	expectedError   error
+	expectedAccounts []Account
+	expectedAccount  Account
+	expectedError    error
+}
+
+func (m *mockListingRepository) GetAccounts(_ context.Context) ([]Account, error) {
+	return m.expectedAccounts, m.expectedError
 }
 
 func (m *mockListingRepository) GetAccountByID(_ context.Context, _ string) (Account, error) {
