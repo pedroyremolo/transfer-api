@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -15,8 +16,9 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-	s := &mockAddingService{}
-	handler := Handler(s)
+	a := &mockAddingService{}
+	l := &mockListingService{}
+	handler := Handler(a, l)
 
 	if handler == nil {
 		t.Errorf("Expected an implementation of http.Handler, got %s", handler)
