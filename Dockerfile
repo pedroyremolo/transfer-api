@@ -13,6 +13,9 @@ RUN go mod download
 
 COPY . .
 
+# Test before running
+RUN CGO_ENABLED=0 GOOS=linux go test -v ./...
+
 # Build the Go app
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/transfer-server
 
