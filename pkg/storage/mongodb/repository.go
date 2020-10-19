@@ -124,9 +124,46 @@ func (s *Storage) GetAccountByID(ctx context.Context, id string) (listing.Accoun
 		return listing.Account{}, err
 	}
 	return listing.Account{
-		Name:    account.Name,
-		CPF:     account.CPF,
-		Secret:  account.Secret,
-		Balance: account.Balance,
+		Name:      account.Name,
+		CPF:       account.CPF,
+		Secret:    account.Secret,
+		Balance:   account.Balance,
+		CreatedAt: &account.CreatedAt,
 	}, nil
+}
+
+func (s *Storage) GetAccounts(ctx context.Context) ([]listing.Account, error) {
+	var accounts []listing.Account
+
+	queryContext, cancel := context.WithTimeout(ctx, time.Second*15)
+	defer cancel()
+
+	cursor, err := s.client.Database(databaseName).Collection(accountsCollection).Find(queryContext, nil)
+	if err != nil {
+		return accounts, err
+	}
+	defer func() {
+		err = cursor.Close(queryContext)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	for cursor.Next(queryContext) {
+		var a Account
+		if err = cursor.Decode(&a); err != nil {
+			// TODO Log err
+			continue
+		}
+
+		accounts = append(accounts, listing.Account{
+			Name:      a.Name,
+			CPF:       a.CPF,
+			Secret:    a.Secret,
+			Balance:   a.Balance,
+			CreatedAt: &a.CreatedAt,
+		})
+	}
+
+	return accounts, nil
 }
