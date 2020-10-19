@@ -138,7 +138,7 @@ func (s *Storage) GetAccounts(ctx context.Context) ([]listing.Account, error) {
 	queryContext, cancel := context.WithTimeout(ctx, time.Second*15)
 	defer cancel()
 
-	cursor, err := s.client.Database(databaseName).Collection(accountsCollection).Find(queryContext, nil)
+	cursor, err := s.client.Database(databaseName).Collection(accountsCollection).Find(queryContext, bson.D{})
 	if err != nil {
 		return accounts, err
 	}
