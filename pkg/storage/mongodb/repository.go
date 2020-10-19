@@ -133,7 +133,7 @@ func (s *Storage) GetAccountByID(ctx context.Context, id string) (listing.Accoun
 }
 
 func (s *Storage) GetAccounts(ctx context.Context) ([]listing.Account, error) {
-	var accounts []listing.Account
+	accounts := make([]listing.Account, 0)
 
 	queryContext, cancel := context.WithTimeout(ctx, time.Second*15)
 	defer cancel()
