@@ -12,7 +12,7 @@ services:
       - APP_DOCUMENT_DB_PORT=27017
       - APP_DOCUMENT_DB_USERNAME=root
       - APP_DOCUMENT_DB_SECRET=rootpass
-      - APP_DOCUMENT_DB_NAME=go_scrum
+      - APP_DOCUMENT_DB_NAME=transfer_api
     networks:
       - transfer_network
   mongo:
@@ -21,7 +21,7 @@ services:
     ports:
       - 27017:27017
     environment:
-      - MONGO_INITDB_DATABASE=user
+      - MONGO_INITDB_DATABASE=transfer_api
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=rootpass
     networks:
