@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -167,4 +168,14 @@ func (s *Storage) GetAccounts(ctx context.Context) ([]listing.Account, error) {
 	}
 
 	return accounts, nil
+}
+
+func (s *Storage) AddToken(ctx context.Context, token authenticating.Token) error {
+	collection := s.client.Database(databaseName).Collection(accountsCollection)
+	insertionCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	_, err := collection.InsertOne(insertionCtx, token)
+
+	return err
 }
