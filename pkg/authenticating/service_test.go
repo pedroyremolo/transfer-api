@@ -14,6 +14,7 @@ func TestService_Sign(t *testing.T) {
 		secretDigest string
 		clientID     string
 	}
+	oid := primitive.NewObjectID()
 	tt := []struct {
 		name       string
 		args       args
@@ -34,7 +35,7 @@ func TestService_Sign(t *testing.T) {
 			repository: mockRepository{},
 			gatekeeper: mockGatekeeper{
 				expectedToken: Token{
-					ID:       primitive.NewObjectID(),
+					ID:       &oid,
 					ClientID: "sa1685fd4w1a489f49asf",
 					Digest:   "sa1685fd4w1a489f49asf.fasofapogkapog.gasjkgpoaskgpoa",
 				},
@@ -71,7 +72,7 @@ func TestService_Sign(t *testing.T) {
 			},
 			gatekeeper: mockGatekeeper{
 				expectedToken: Token{
-					ID:       primitive.NewObjectID(),
+					ID:       &oid,
 					ClientID: "sa1685fd4w1a489f49asf",
 					Digest:   "sa1685fd4w1a489f49asf.fasofapogkapog.gasjkgpoaskgpoa",
 				},
