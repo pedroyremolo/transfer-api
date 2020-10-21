@@ -102,6 +102,47 @@ func TestService_GetAccounts(t *testing.T) {
 	}
 }
 
+func TestService_GetAccountByCPF(t *testing.T) {
+	tt := []struct {
+		name       string
+		cpf        string
+		repository *mockListingRepository
+	}{
+		{
+			name: "When runs smoothly",
+			cpf:  "4d6as4d6a84d6as4wq4",
+			repository: &mockListingRepository{
+				expectedAccount: Account{
+					ID:      "g4a68vf6a4g96ws84g",
+					Name:    "Monkey D. Luffy",
+					CPF:     "11111111030",
+					Secret:  "onepiece42",
+					Balance: 100000.00,
+				},
+			},
+		},
+		{
+			name: "When can't find an account with the given cpf",
+			repository: &mockListingRepository{
+				expectedError: errors.New("couldn't find the informed account"),
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			s := NewService(tc.repository)
+			account, err := s.GetAccountByCPF(context.TODO(), tc.cpf)
+			if err != tc.repository.expectedError {
+				t.Errorf("Expected err %s; got %s", tc.repository.expectedError, err)
+			}
+			if account.CPF != tc.repository.expectedAccount.CPF {
+				t.Errorf("Expected cpf %s; got %s", tc.repository.expectedAccount.CPF, account.CPF)
+			}
+		})
+	}
+}
+
 type mockListingRepository struct {
 	expectedAccounts []Account
 	expectedAccount  Account
@@ -113,5 +154,9 @@ func (m *mockListingRepository) GetAccounts(_ context.Context) ([]Account, error
 }
 
 func (m *mockListingRepository) GetAccountByID(_ context.Context, _ string) (Account, error) {
+	return m.expectedAccount, m.expectedError
+}
+
+func (m *mockListingRepository) GetAccountByCPF(_ context.Context, _ string) (Account, error) {
 	return m.expectedAccount, m.expectedError
 }
