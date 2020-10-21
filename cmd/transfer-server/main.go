@@ -25,7 +25,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	gatekeeper := jwt.NewGatekeeper("foo", "me")
+	gatekeeper := jwt.NewGatekeeperFromEnv()
 
 	dbCtx := context.Background()
 	storage.Connect(dbCtx)
