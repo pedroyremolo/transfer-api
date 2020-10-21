@@ -2,6 +2,7 @@ package rest
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
@@ -22,9 +23,21 @@ type ErrorResponse struct {
 
 func setJSONError(err error, status int, w http.ResponseWriter) {
 	log.Println(err.Error())
+	var jsonDecodeErr *json.UnmarshalTypeError
+	var message string
+	if errors.As(err, &jsonDecodeErr) {
+		message = fmt.Sprintf(
+			"Invalid %s entity: expected type %s, got %s at field %s",
+			jsonDecodeErr.Struct,
+			jsonDecodeErr.Type.Name(),
+			jsonDecodeErr.Value,
+			jsonDecodeErr.Field)
+	} else {
+		message = err.Error()
+	}
 	response := ErrorResponse{
 		StatusCode: status,
-		Message:    err.Error(),
+		Message:    message,
 	}
 	w.Header().Set("Content-Type", defaultContentType)
 	w.WriteHeader(status)
