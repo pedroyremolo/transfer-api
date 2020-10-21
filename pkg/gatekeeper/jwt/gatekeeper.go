@@ -27,6 +27,13 @@ func NewGatekeeperFromEnv() *Gatekeeper {
 	}
 }
 
+func NewGatekeeper(tokenSecret string, iss string) *Gatekeeper {
+	return &Gatekeeper{
+		hs:  jwt.NewHS256([]byte(tokenSecret)),
+		iss: iss,
+	}
+}
+
 func (g *Gatekeeper) Sign(login authenticating.Login, secretDigest string, clientID string) (authenticating.Token, error) {
 	secret := []byte(fmt.Sprintf(`"%s"`, login.Secret))
 	if err := bcrypt.CompareHashAndPassword([]byte(secretDigest), secret); err != nil {
