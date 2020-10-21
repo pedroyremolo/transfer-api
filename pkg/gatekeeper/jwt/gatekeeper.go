@@ -1,7 +1,7 @@
 package jwt
 
 import (
-	"errors"
+	"fmt"
 	"github.com/gbrlsnchs/jwt/v3"
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -24,8 +24,9 @@ func NewGatekeeper(tokenSecret string, issuer string) *Gatekeeper {
 }
 
 func (g *Gatekeeper) Sign(login authenticating.Login, secretDigest string, clientID string) (authenticating.Token, error) {
-	if err := bcrypt.CompareHashAndPassword([]byte(secretDigest), []byte(login.Secret)); err != nil {
-		return authenticating.Token{}, InvalidLoginErr
+	secret := []byte(fmt.Sprintf(`"%s"`, login.Secret))
+	if err := bcrypt.CompareHashAndPassword([]byte(secretDigest), secret); err != nil {
+		return authenticating.Token{}, err
 	}
 
 	currentTime := time.Now().UTC()
@@ -43,7 +44,7 @@ func (g *Gatekeeper) Sign(login authenticating.Login, secretDigest string, clien
 		return authenticating.Token{}, err
 	}
 
-	return authenticating.Token{ID: id, ClientID: clientID, Digest: string(token)}, nil
+	return authenticating.Token{ID: &id, ClientID: clientID, Digest: string(token)}, nil
 }
 
 func (g *Gatekeeper) Verify(_ string) authenticating.Token {

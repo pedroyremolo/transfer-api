@@ -10,7 +10,7 @@ import (
 
 func TestGatekeeper_Sign(t *testing.T) {
 	gk := NewGatekeeper("testSecret", "test")
-	defaultSecretHash, _ := bcrypt.GenerateFromPassword([]byte("foobar"), bcrypt.DefaultCost)
+	defaultSecretHash, _ := bcrypt.GenerateFromPassword([]byte(`"foobar"`), bcrypt.DefaultCost)
 	type args struct {
 		login        authenticating.Login
 		secretDigest string
