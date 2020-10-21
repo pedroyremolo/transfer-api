@@ -22,7 +22,8 @@ import (
 func TestHandler(t *testing.T) {
 	a := &mockAddingService{}
 	l := &mockListingService{}
-	handler := Handler(a, l)
+	auth := &mockAuthenticatingService{}
+	handler := Handler(a, l, auth)
 
 	if handler == nil {
 		t.Errorf("Expected an implementation of http.Handler, got %s", handler)

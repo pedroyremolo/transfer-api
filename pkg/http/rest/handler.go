@@ -45,12 +45,14 @@ func setJSONError(err error, status int, w http.ResponseWriter) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func Handler(a adding.Service, l listing.Service) http.Handler {
+func Handler(a adding.Service, l listing.Service, auth authenticating.Service) http.Handler {
 	router := httprouter.New()
 
 	router.POST("/accounts", addAccount(a))
 	router.GET("/accounts", getAccounts(l))
 	router.GET("/accounts/:id/balance", getAccountBalanceByID(l))
+
+	router.POST("/login", login(auth, l))
 
 	return router
 }
