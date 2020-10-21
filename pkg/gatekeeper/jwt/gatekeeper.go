@@ -6,7 +6,13 @@ import (
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
+	"os"
 	"time"
+)
+
+var (
+	secret = os.Getenv("APP_JWT_GATEKEEPER_SECRET")
+	issuer = os.Getenv("APP_JWT_GATEKEEPER_ISSUER")
 )
 
 type Gatekeeper struct {
@@ -14,9 +20,9 @@ type Gatekeeper struct {
 	iss string
 }
 
-func NewGatekeeper(tokenSecret string, issuer string) *Gatekeeper {
+func NewGatekeeperFromEnv() *Gatekeeper {
 	return &Gatekeeper{
-		hs:  jwt.NewHS256([]byte(tokenSecret)),
+		hs:  jwt.NewHS256([]byte(secret)),
 		iss: issuer,
 	}
 }
