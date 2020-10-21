@@ -1,6 +1,11 @@
 package authenticating
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var InvalidLoginErr = errors.New("it seems your login credentials are invalid, verify them and try again")
 
 type Service interface {
 	Sign(ctx context.Context, login Login, secretDigest string, clientID string) (Token, error)
@@ -31,7 +36,7 @@ func NewService(repository Repository, gatekeeper Gatekeeper) Service {
 func (s *service) Sign(ctx context.Context, login Login, secretDigest string, clientID string) (Token, error) {
 	token, err := s.g.Sign(login, secretDigest, clientID)
 	if err != nil {
-		return Token{}, err
+		return Token{}, InvalidLoginErr
 	}
 
 	err = s.r.AddToken(ctx, token)

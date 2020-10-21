@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-var InvalidLoginErr = errors.New("it seems your login credentials are invalid, verify them and try again")
-
 type Gatekeeper struct {
 	hs  *jwt.HMACSHA
 	iss string
