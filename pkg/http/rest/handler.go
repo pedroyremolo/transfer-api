@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
 	"log"
@@ -110,5 +111,40 @@ func getAccounts(l listing.Service) func(w http.ResponseWriter, r *http.Request,
 		}
 		w.Header().Set("Content-Type", defaultContentType)
 		_ = json.NewEncoder(w).Encode(accounts)
+	}
+}
+
+func login(auth authenticating.Service, l listing.Service) func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		decoder := json.NewDecoder(r.Body)
+		ctx := r.Context()
+		var login authenticating.Login
+		if err := decoder.Decode(&login); err != nil {
+			setJSONError(err, http.StatusBadRequest, w)
+			return
+		}
+
+		account, err := l.GetAccountByCPF(ctx, login.CPF)
+		if err != nil {
+			if err.Error() == mongodb.ErrNoAccountWasFound.Error() {
+				setJSONError(authenticating.InvalidLoginErr, http.StatusUnauthorized, w)
+				return
+			}
+			setJSONError(err, http.StatusInternalServerError, w)
+			return
+		}
+		var token authenticating.Token
+		token, err = auth.Sign(ctx, login, account.Secret, account.ID)
+		if err != nil {
+			if err.Error() == authenticating.InvalidLoginErr.Error() {
+				setJSONError(authenticating.InvalidLoginErr, http.StatusUnauthorized, w)
+				return
+			}
+			setJSONError(err, http.StatusInternalServerError, w)
+			return
+		}
+
+		w.Header().Set("Content-Type", defaultContentType)
+		_ = json.NewEncoder(w).Encode(authenticating.Token{Digest: token.Digest})
 	}
 }
