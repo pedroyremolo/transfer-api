@@ -76,7 +76,7 @@ func TestGatekeeper_Verify(t *testing.T) {
 			}
 
 			if !tc.wantErr && !reflect.DeepEqual(token, got) {
-				t.Errorf("Verify() error = %v, wantErr %v", err, tc.wantErr)
+				t.Errorf("Expected token %v, got %v", token, got)
 			}
 		})
 	}
