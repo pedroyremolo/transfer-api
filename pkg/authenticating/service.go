@@ -17,8 +17,8 @@ type Repository interface {
 }
 
 type Gatekeeper interface {
-	Sign(login Login, secretDigest string, clientID string) (Token, error)
-	Verify(tokenDigest string) Token
+	Sign(clientID string) (Token, error)
+	Verify(tokenDigest string) (Token, error)
 }
 
 type service struct {
@@ -34,7 +34,12 @@ func NewService(repository Repository, gatekeeper Gatekeeper) Service {
 }
 
 func (s *service) Sign(ctx context.Context, login Login, secretDigest string, clientID string) (Token, error) {
-	token, err := s.g.Sign(login, secretDigest, clientID)
+	secret := []byte(fmt.Sprintf(`"%s"`, login.Secret))
+	if err := bcrypt.CompareHashAndPassword([]byte(secretDigest), secret); err != nil {
+		return Token{}, InvalidLoginErr
+	}
+
+	token, err := s.g.Sign(clientID)
 	if err != nil {
 		return Token{}, InvalidLoginErr
 	}

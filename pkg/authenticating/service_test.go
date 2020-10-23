@@ -3,7 +3,9 @@ package authenticating
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/bcrypt"
 	"reflect"
 	"testing"
 )
@@ -14,6 +16,15 @@ func TestService_Sign(t *testing.T) {
 		secretDigest string
 		clientID     string
 	}
+	login := Login{
+		CPF:    "11111111030",
+		Secret: "65416949",
+	}
+	rightSecretDigestBytes, _ := bcrypt.GenerateFromPassword(
+		[]byte(fmt.Sprintf(`"%s"`, login.Secret)),
+		bcrypt.DefaultCost,
+	)
+	rightSecretDigest := string(rightSecretDigestBytes)
 	oid := primitive.NewObjectID()
 	tt := []struct {
 		name       string
@@ -25,11 +36,8 @@ func TestService_Sign(t *testing.T) {
 		{
 			name: "When everything runs smoothly",
 			args: args{
-				login: Login{
-					CPF:    "11111111030",
-					Secret: "65416949",
-				},
-				secretDigest: "4f89sa4fd6sa4c1984f",
+				login:        login,
+				secretDigest: rightSecretDigest,
 				clientID:     "sa1685fd4w1a489f49asf",
 			},
 			repository: mockRepository{},
@@ -42,13 +50,23 @@ func TestService_Sign(t *testing.T) {
 			},
 		},
 		{
+			name: "When an error occurs at Login.Password validation",
+			args: args{
+				login:        login,
+				secretDigest: "fooo",
+				clientID:     "sa1685fd4w1a489f49asf",
+			},
+			repository: mockRepository{},
+			gatekeeper: mockGatekeeper{
+				expectedErr: errors.New("foo"),
+			},
+			wantErr: true,
+		},
+		{
 			name: "When an error occurs at token sign flow",
 			args: args{
-				login: Login{
-					CPF:    "11111111030",
-					Secret: "65416949",
-				},
-				secretDigest: "4f89sa4fd6sa4c1984f",
+				login:        login,
+				secretDigest: rightSecretDigest,
 				clientID:     "sa1685fd4w1a489f49asf",
 			},
 			repository: mockRepository{},
@@ -60,10 +78,7 @@ func TestService_Sign(t *testing.T) {
 		{
 			name: "When an error occurs at repository insertion",
 			args: args{
-				login: Login{
-					CPF:    "11111111030",
-					Secret: "65416949",
-				},
+				login:        login,
 				secretDigest: "4f89sa4fd6sa4c1984f",
 				clientID:     "sa1685fd4w1a489f49asf",
 			},
@@ -101,12 +116,12 @@ type mockGatekeeper struct {
 	expectedErr   error
 }
 
-func (m *mockGatekeeper) Sign(_ Login, _ string, _ string) (Token, error) {
+func (m *mockGatekeeper) Sign(_ string) (Token, error) {
 	return m.expectedToken, m.expectedErr
 }
 
-func (m *mockGatekeeper) Verify(_ string) Token {
-	panic("implement me")
+func (m *mockGatekeeper) Verify(_ string) (Token, error) {
+	return m.expectedToken, m.expectedErr
 }
 
 type mockRepository struct {
