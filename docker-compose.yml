@@ -13,6 +13,8 @@ services:
       - APP_DOCUMENT_DB_USERNAME=root
       - APP_DOCUMENT_DB_SECRET=rootpass
       - APP_DOCUMENT_DB_NAME=transfer_api
+      - APP_JWT_GATEKEEPER_SECRET=token123
+      - APP_JWT_GATEKEEPER_ISSUER=transferapi
     networks:
       - transfer_network
   mongo:

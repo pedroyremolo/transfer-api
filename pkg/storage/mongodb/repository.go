@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -20,10 +21,12 @@ type Storage struct {
 
 const (
 	accountsCollection = "accounts"
+	tokensCollection   = "tokens"
 )
 
 var ErrCPFAlreadyExists = errors.New("this cpf could not be inserted in our DB")
 var ErrNoAccountWasFound = errors.New("no account was found with the given filter parameters")
+var ErrNoTokenWasFound = errors.New("no token was found with the given filter parameters")
 
 var (
 	databaseName = os.Getenv("APP_DOCUMENT_DB_NAME")
@@ -124,6 +127,30 @@ func (s *Storage) GetAccountByID(ctx context.Context, id string) (listing.Accoun
 		return listing.Account{}, err
 	}
 	return listing.Account{
+		ID:        account.ID.Hex(),
+		Name:      account.Name,
+		CPF:       account.CPF,
+		Secret:    account.Secret,
+		Balance:   account.Balance,
+		CreatedAt: &account.CreatedAt,
+	}, nil
+}
+
+func (s *Storage) GetAccountByCPF(ctx context.Context, cpf string) (listing.Account, error) {
+	collection := s.client.Database(databaseName).Collection(accountsCollection)
+	queryContext, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	var account Account
+	result := collection.FindOne(queryContext, bson.D{{"cpf", cpf}})
+	if err := result.Decode(&account); err != nil {
+		if err == mongo.ErrNoDocuments {
+			err = ErrNoAccountWasFound
+		}
+		return listing.Account{}, err
+	}
+	return listing.Account{
+		ID:        account.ID.Hex(),
 		Name:      account.Name,
 		CPF:       account.CPF,
 		Secret:    account.Secret,
@@ -167,4 +194,30 @@ func (s *Storage) GetAccounts(ctx context.Context) ([]listing.Account, error) {
 	}
 
 	return accounts, nil
+}
+
+func (s *Storage) AddToken(ctx context.Context, token authenticating.Token) error {
+	collection := s.client.Database(databaseName).Collection(tokensCollection)
+	insertionCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	_, err := collection.InsertOne(insertionCtx, token)
+
+	return err
+}
+
+func (s *Storage) GetTokenByID(ctx context.Context, id primitive.ObjectID) (authenticating.Token, error) {
+	collection := s.client.Database(databaseName).Collection(tokensCollection)
+	queryCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+	var token authenticating.Token
+
+	result := collection.FindOne(queryCtx, bson.D{{Key: "_id", Value: id}})
+	if err := result.Decode(&token); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return authenticating.Token{}, ErrNoTokenWasFound
+		}
+		return authenticating.Token{}, err
+	}
+	return token, nil
 }

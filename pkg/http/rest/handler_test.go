@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +22,8 @@ import (
 func TestHandler(t *testing.T) {
 	a := &mockAddingService{}
 	l := &mockListingService{}
-	handler := Handler(a, l)
+	auth := &mockAuthenticatingService{}
+	handler := Handler(a, l, auth)
 
 	if handler == nil {
 		t.Errorf("Expected an implementation of http.Handler, got %s", handler)
@@ -213,6 +216,115 @@ func TestGetAccounts(t *testing.T) {
 	}
 }
 
+func TestLogin(t *testing.T) {
+	tokenOID := primitive.NewObjectID()
+	account := listing.Account{
+		ID:      "hg94gs8a41v685s4g89",
+		Name:    "John Doe",
+		CPF:     "11111111030",
+		Secret:  "894d9a8",
+		Balance: 0,
+	}
+	token := authenticating.Token{
+		ID:       &tokenOID,
+		ClientID: account.ID,
+		Digest:   "e4af98as986a96f84af.d8a694f6a5f1sa86f1a98g.4da89s4fda98f498ga",
+	}
+
+	tt := []struct {
+		name             string
+		reqBodyJSON      string
+		listingService   *mockListingService
+		authService      *mockAuthenticatingService
+		expectedResponse string
+		expectedStatus   int
+	}{
+		{
+			name:        "When login credentials are okay and token is successfully generated",
+			reqBodyJSON: fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, account.Secret),
+			listingService: &mockListingService{
+				Account: account,
+			},
+			authService: &mockAuthenticatingService{
+				Token: token,
+			},
+			expectedResponse: fmt.Sprintf(`{"token":"%s"}`, token.Digest),
+			expectedStatus:   http.StatusOK,
+		},
+		{
+			name:        "When cpf credential is not in our repository",
+			reqBodyJSON: fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, account.Secret),
+			listingService: &mockListingService{
+				Err: mongodb.ErrNoAccountWasFound,
+			},
+			expectedResponse: `{"status_code":401,"message":"it seems your login credentials are invalid, verify them and try again"}`,
+			expectedStatus:   http.StatusUnauthorized,
+		},
+		{
+			name:        "When cpf credential is in our repository, but password is invalid",
+			reqBodyJSON: fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, "deuruim"),
+			listingService: &mockListingService{
+				Account: account,
+			},
+			authService: &mockAuthenticatingService{
+				Err: authenticating.InvalidLoginErr,
+			},
+			expectedResponse: `{"status_code":401,"message":"it seems your login credentials are invalid, verify them and try again"}`,
+			expectedStatus:   http.StatusUnauthorized,
+		},
+		{
+			name:             "When payload is invalid",
+			reqBodyJSON:      fmt.Sprintf(`{"cpf":"%s","secret":123498}`, account.CPF),
+			listingService:   &mockListingService{},
+			authService:      &mockAuthenticatingService{},
+			expectedResponse: `{"status_code":400,"message":"Invalid Login entity: expected type string, got number at field secret"}`,
+			expectedStatus:   http.StatusBadRequest,
+		},
+		{
+			name:        "When unexpected errors occurs at repo operations",
+			reqBodyJSON: fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, account.Secret),
+			listingService: &mockListingService{
+				Err: errors.New("foo unexpected"),
+			},
+			authService:      &mockAuthenticatingService{},
+			expectedResponse: `{"status_code":500,"message":"foo unexpected"}`,
+			expectedStatus:   http.StatusInternalServerError,
+		},
+		{
+			name:           "When unexpected errors occurs at gatekeeper operations",
+			reqBodyJSON:    fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, account.Secret),
+			listingService: &mockListingService{},
+			authService: &mockAuthenticatingService{
+				Err: errors.New("foo unexpected"),
+			},
+			expectedResponse: `{"status_code":500,"message":"foo unexpected"}`,
+			expectedStatus:   http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			var reqBody string
+			jsonBuffer := bytes.NewBuffer([]byte(tc.reqBodyJSON))
+			if err := json.NewEncoder(jsonBuffer).Encode(reqBody); err != nil {
+				t.Fatalf("Could not encode %s as json", tc.reqBodyJSON)
+			}
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodPost, "/accounts", jsonBuffer)
+			h := login(tc.authService, tc.listingService)
+
+			h(w, r, nil)
+
+			if w.Code != tc.expectedStatus {
+				t.Errorf("Expected response status %v; got %v", tc.expectedStatus, w.Code)
+			}
+
+			assertResponseJSON(t, w, tc.expectedResponse)
+		})
+	}
+}
+
 type mockAddingService struct {
 	ID  string
 	Err error
@@ -225,6 +337,7 @@ func (m *mockAddingService) AddAccount(_ context.Context, _ adding.Account) (str
 type mockListingService struct {
 	Balance  float64
 	Accounts []listing.Account
+	Account  listing.Account
 	Err      error
 }
 
@@ -234,6 +347,23 @@ func (m *mockListingService) GetAccountBalanceByID(_ context.Context, _ string) 
 
 func (m *mockListingService) GetAccounts(_ context.Context) ([]listing.Account, error) {
 	return m.Accounts, m.Err
+}
+
+func (m *mockListingService) GetAccountByCPF(_ context.Context, _ string) (listing.Account, error) {
+	return m.Account, m.Err
+}
+
+type mockAuthenticatingService struct {
+	Token authenticating.Token
+	Err   error
+}
+
+func (m *mockAuthenticatingService) Sign(_ context.Context, _ authenticating.Login, _ string, _ string) (authenticating.Token, error) {
+	return m.Token, m.Err
+}
+
+func (m *mockAuthenticatingService) Verify(_ context.Context, _ string) (authenticating.Token, error) {
+	panic("implement me")
 }
 
 func assertResponseJSON(t *testing.T, w *httptest.ResponseRecorder, expectedResponseJSON string) {

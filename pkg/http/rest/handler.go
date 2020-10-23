@@ -2,9 +2,11 @@ package rest
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
+	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
 	"log"
@@ -22,21 +24,35 @@ type ErrorResponse struct {
 
 func setJSONError(err error, status int, w http.ResponseWriter) {
 	log.Println(err.Error())
+	var jsonDecodeErr *json.UnmarshalTypeError
+	var message string
+	if errors.As(err, &jsonDecodeErr) {
+		message = fmt.Sprintf(
+			"Invalid %s entity: expected type %s, got %s at field %s",
+			jsonDecodeErr.Struct,
+			jsonDecodeErr.Type.Name(),
+			jsonDecodeErr.Value,
+			jsonDecodeErr.Field)
+	} else {
+		message = err.Error()
+	}
 	response := ErrorResponse{
 		StatusCode: status,
-		Message:    err.Error(),
+		Message:    message,
 	}
 	w.Header().Set("Content-Type", defaultContentType)
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func Handler(a adding.Service, l listing.Service) http.Handler {
+func Handler(a adding.Service, l listing.Service, auth authenticating.Service) http.Handler {
 	router := httprouter.New()
 
 	router.POST("/accounts", addAccount(a))
 	router.GET("/accounts", getAccounts(l))
 	router.GET("/accounts/:id/balance", getAccountBalanceByID(l))
+
+	router.POST("/login", login(auth, l))
 
 	return router
 }
@@ -97,5 +113,40 @@ func getAccounts(l listing.Service) func(w http.ResponseWriter, r *http.Request,
 		}
 		w.Header().Set("Content-Type", defaultContentType)
 		_ = json.NewEncoder(w).Encode(accounts)
+	}
+}
+
+func login(auth authenticating.Service, l listing.Service) func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		decoder := json.NewDecoder(r.Body)
+		ctx := r.Context()
+		var login authenticating.Login
+		if err := decoder.Decode(&login); err != nil {
+			setJSONError(err, http.StatusBadRequest, w)
+			return
+		}
+
+		account, err := l.GetAccountByCPF(ctx, login.CPF)
+		if err != nil {
+			if err.Error() == mongodb.ErrNoAccountWasFound.Error() {
+				setJSONError(authenticating.InvalidLoginErr, http.StatusUnauthorized, w)
+				return
+			}
+			setJSONError(err, http.StatusInternalServerError, w)
+			return
+		}
+		var token authenticating.Token
+		token, err = auth.Sign(ctx, login, account.Secret, account.ID)
+		if err != nil {
+			if err.Error() == authenticating.InvalidLoginErr.Error() {
+				setJSONError(authenticating.InvalidLoginErr, http.StatusUnauthorized, w)
+				return
+			}
+			setJSONError(err, http.StatusInternalServerError, w)
+			return
+		}
+
+		w.Header().Set("Content-Type", defaultContentType)
+		_ = json.NewEncoder(w).Encode(authenticating.Token{Digest: token.Digest})
 	}
 }
