@@ -42,18 +42,41 @@ func TestGatekeeper_Sign(t *testing.T) {
 }
 
 func TestGatekeeper_Verify(t *testing.T) {
-	gk := &Gatekeeper{hs: jwt.NewHS256([]byte("test"))}
+	gk := NewGatekeeper("testSecret", "test")
+	clientID := "4sfa9684fsa698"
+	token, _ := gk.Sign(clientID)
 	tt := []struct {
 		name        string
 		tokenDigest string
 		want        authenticating.Token
+		wantErr     bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:        "When there's a valid token",
+			tokenDigest: token.Digest,
+			want:        token,
+			wantErr:     false,
+		},
+		{
+			name:        "When there's an invalid token",
+			tokenDigest: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ0ZXN0RXJyIiwiZXhwIjoxNjAzNDY2OTEyLCJpYXQiOjE2MDM0NjUxMTIsImp0aSI6IjVmOTJlZjk4MGRlOWZmMGY0N2MzNjc2YiIsImNsaWVudF9pZCI6IjRzZmE5Njg0ZnNhNjk4In0.yIJbqOSFDjZ7gTlLRHK-Wm_WO_Ghh_d1SwYdMjiZKps",
+			wantErr:     true,
+		},
+		{
+			name:        "When algorithm is invalid",
+			tokenDigest: "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ0ZXN0IiwiZXhwIjoxNjAzNDY2OTEyLCJpYXQiOjE2MDM0NjUxMTIsImp0aSI6IjVmOTJlZjk4MGRlOWZmMGY0N2MzNjc2YiIsImNsaWVudF9pZCI6IjRzZmE5Njg0ZnNhNjk4In0.Z5llFB6oUgt-KMshrFL7R7EN3FzkBWyalcDs4XZuGQ5r1HGXFnVXdHaQOOluuVtF",
+			wantErr:     true,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := gk.Verify(tc.tokenDigest); !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("Verify() = %v, want %v", got, tc.want)
+			got, err := gk.Verify(tc.tokenDigest)
+			if !tc.wantErr && (err != nil) {
+				t.Errorf("Verify() error = %v, wantErr %v", err, tc.wantErr)
+			}
+
+			if !tc.wantErr && !reflect.DeepEqual(token, got) {
+				t.Errorf("Verify() error = %v, wantErr %v", err, tc.wantErr)
 			}
 		})
 	}
