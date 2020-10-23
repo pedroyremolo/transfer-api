@@ -26,6 +26,7 @@ const (
 
 var ErrCPFAlreadyExists = errors.New("this cpf could not be inserted in our DB")
 var ErrNoAccountWasFound = errors.New("no account was found with the given filter parameters")
+var ErrNoTokenWasFound = errors.New("no token was found with the given filter parameters")
 
 var (
 	databaseName = os.Getenv("APP_DOCUMENT_DB_NAME")
@@ -203,4 +204,20 @@ func (s *Storage) AddToken(ctx context.Context, token authenticating.Token) erro
 	_, err := collection.InsertOne(insertionCtx, token)
 
 	return err
+}
+
+func (s *Storage) GetTokenByID(ctx context.Context, id primitive.ObjectID) (authenticating.Token, error) {
+	collection := s.client.Database(databaseName).Collection(tokensCollection)
+	queryCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+	var token authenticating.Token
+
+	result := collection.FindOne(queryCtx, bson.D{{Key: "_id", Value: id}})
+	if err := result.Decode(&token); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return authenticating.Token{}, ErrNoTokenWasFound
+		}
+		return authenticating.Token{}, err
+	}
+	return token, nil
 }
