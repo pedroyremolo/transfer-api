@@ -362,7 +362,7 @@ func (m *mockAuthenticatingService) Sign(_ context.Context, _ authenticating.Log
 	return m.Token, m.Err
 }
 
-func (m *mockAuthenticatingService) Verify(_ context.Context, _ authenticating.Token) bool {
+func (m *mockAuthenticatingService) Verify(_ context.Context, _ string) (authenticating.Token, error) {
 	panic("implement me")
 }
 

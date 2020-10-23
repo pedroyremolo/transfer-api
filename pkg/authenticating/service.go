@@ -3,17 +3,21 @@ package authenticating
 import (
 	"context"
 	"errors"
+	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var InvalidLoginErr = errors.New("it seems your login credentials are invalid, verify them and try again")
 
 type Service interface {
 	Sign(ctx context.Context, login Login, secretDigest string, clientID string) (Token, error)
-	Verify(ctx context.Context, inToken Token) bool
+	Verify(ctx context.Context, tokenDigest string) (Token, error)
 }
 
 type Repository interface {
 	AddToken(ctx context.Context, token Token) error
+	GetTokenByID(ctx context.Context, id primitive.ObjectID) (Token, error)
 }
 
 type Gatekeeper interface {
@@ -52,6 +56,15 @@ func (s *service) Sign(ctx context.Context, login Login, secretDigest string, cl
 	return token, nil
 }
 
-func (s *service) Verify(_ context.Context, _ Token) bool {
-	panic("implement me")
+func (s *service) Verify(ctx context.Context, tokenDigest string) (Token, error) {
+	token, err := s.g.Verify(tokenDigest)
+	if err != nil {
+		return Token{}, err
+	}
+
+	_, err = s.r.GetTokenByID(ctx, *token.ID)
+	if err != nil {
+		return Token{}, err
+	}
+	return token, nil
 }
