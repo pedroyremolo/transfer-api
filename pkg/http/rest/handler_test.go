@@ -334,6 +334,10 @@ func (m *mockAddingService) AddAccount(_ context.Context, _ adding.Account) (str
 	return m.ID, m.Err
 }
 
+func (m *mockAddingService) AddTransfer(_ context.Context, _ adding.Transfer) (string, error) {
+	return m.ID, m.Err
+}
+
 type mockListingService struct {
 	Balance  float64
 	Accounts []listing.Account

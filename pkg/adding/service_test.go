@@ -61,6 +61,55 @@ func TestService_AddAccount(t *testing.T) {
 	}
 }
 
+func TestService_AddTransfer(t *testing.T) {
+	tt := []struct {
+		name        string
+		transfer    Transfer
+		expectedErr error
+	}{
+		{
+			name: "When successfully adds",
+			transfer: Transfer{
+				OriginAccountID:      "4f89a4fs9864a",
+				DestinationAccountID: "fas64fa684fa9",
+				Amount:               50.00,
+				CreatedAt:            time.Time{},
+			},
+		},
+		{
+			name: "When an error occurs",
+			transfer: Transfer{
+				OriginAccountID:      "4f89a4fs9864a",
+				DestinationAccountID: "fas64fa684fa9",
+				Amount:               50.00,
+				CreatedAt:            time.Time{},
+			},
+			expectedErr: errors.New("foo"),
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			mockRepo := new(mockStorage)
+			mockRepo.expectedErr = tc.expectedErr
+			s := NewService(mockRepo)
+			ctx := context.TODO()
+			id, err := s.AddTransfer(ctx, tc.transfer)
+
+			if err != nil && tc.expectedErr == nil {
+				t.Errorf("Expected nil, got %s", err)
+			}
+
+			if mockRepo.t.CreatedAt == zeroTime && tc.expectedErr == nil {
+				t.Errorf("Expected account with CreatedAt near %s, got %s", time.Now().UTC(), mockRepo.t.CreatedAt)
+			}
+
+			if id != mockRepo.oid.Hex() && tc.expectedErr == nil {
+				t.Errorf("Expected id %s, got %s", id, mockRepo.oid.Hex())
+			}
+		})
+	}
+}
+
 type mockStorage struct {
 	a           Account
 	t           Transfer
