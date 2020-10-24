@@ -20,8 +20,9 @@ type Storage struct {
 }
 
 const (
-	accountsCollection = "accounts"
-	tokensCollection   = "tokens"
+	accountsCollection  = "accounts"
+	tokensCollection    = "tokens"
+	transfersCollection = "transfers"
 )
 
 var ErrCPFAlreadyExists = errors.New("this cpf could not be inserted in our DB")
@@ -105,6 +106,27 @@ func (s *Storage) AddAccount(ctx context.Context, account adding.Account) (strin
 	if err != nil {
 		// TODO Err logging
 		return "", ErrCPFAlreadyExists
+	}
+	return oid.InsertedID.(primitive.ObjectID).Hex(), err
+}
+
+func (s *Storage) AddTransfer(ctx context.Context, transfer adding.Transfer) (string, error) {
+	collection := s.client.Database(databaseName).Collection(transfersCollection)
+	insertionCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	dbTransfer := Transfer{
+		ID:                   primitive.NewObjectID(),
+		OriginAccountID:      transfer.OriginAccountID,
+		DestinationAccountID: transfer.DestinationAccountID,
+		Amount:               transfer.Amount,
+		CreatedAt:            transfer.CreatedAt,
+	}
+
+	oid, err := collection.InsertOne(insertionCtx, dbTransfer)
+	if err != nil {
+		// TODO Err logging
+		return "", err
 	}
 	return oid.InsertedID.(primitive.ObjectID).Hex(), err
 }
