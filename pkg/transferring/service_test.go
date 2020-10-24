@@ -45,11 +45,11 @@ func Test_service_BetweenAccounts(t *testing.T) {
 			}
 
 			if !tc.wantErr && tOBalance != tc.args.originBalance {
-				t.Errorf("Expected reverse operation lead to equality to originBalance %f, but got %f", tc.args.originBalance, tOBalance)
+				t.Errorf("Expected reverse operation to lead to equality with originBalance %f, but got %f", tc.args.originBalance, tOBalance)
 			}
 
 			if !tc.wantErr && tDBalance != tc.args.destinationBalance {
-				t.Errorf("Expected reverse operation lead to equality to destinationBalance %f, but got %f", tc.args.destinationBalance, tDBalance)
+				t.Errorf("Expected reverse operation to lead to equality with destinationBalance %f, but got %f", tc.args.destinationBalance, tDBalance)
 			}
 		})
 	}
