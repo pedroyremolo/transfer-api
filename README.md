@@ -41,6 +41,7 @@ A mesma é gerenciada via variáveis de ambiente, segue abaixo a tabela:
 | Nome                      | Descrição                                                  |
 |---------------------------|------------------------------------------------------------|
 | APP_PORT                  | Porta a ser escutada pela aplicação para novas requisições |
+| APP_LOG_LEVEL             | Nível de log estruturado da aplicação                      |
 | APP_DOCUMENT_DB_HOST      | Host da instância do MongoDB                               |
 | APP_DOCUMENT_DB_PORT      | Porta da instância do MongoDB                              |
 | APP_DOCUMENT_DB_USERNAME  | Usuário da instância do MongoDB                            |
