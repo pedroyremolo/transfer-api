@@ -1,0 +1,262 @@
+openapi: 3.0.1
+info:
+  title: "Transfer API"
+  version: "0.1.0"
+  description: "This API aims to manage internal accounts transferring of a digital bank"
+components:
+  schemas:
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        cpf:
+          type: string
+        balance:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: datetime
+    AccountPost:
+      type: object
+      properties:
+        name:
+          type: string
+        cpf:
+          type: string
+        secret:
+          type: string
+        balance:
+          type: number
+          format: double
+    TransferPost:
+      type: object
+      properties:
+        account_destination_id:
+          type: string
+        amount:
+          type: number
+          format: double
+    Transfer:
+      type: object
+      properties:
+        id:
+          type: string
+        account_origin_id:
+          type: string
+        account_destination_id:
+          type: string
+        amount:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: datetime
+    ErrorResponse:
+      type: object
+      properties:
+        status_code:
+          type: integer
+        message:
+          type: string
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+paths:
+  /login:
+    post:
+      summary: Login
+      operationId: login
+      responses:
+        '200':
+          description: User authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    description: A JWT token to be used in protected routes
+                    type: string
+                    format: JWT
+        '400':
+          description: Something wrong with Login payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Something bad happened when trying access required information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /accounts:
+    post:
+      tags:
+        - Accounts
+      summary: Creates an account
+      operationId: createAccount
+      requestBody:
+        description: Account information to be added
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountPost'
+      responses:
+        '201':
+          description: Account was created successfully
+          headers:
+            Location:
+              description: Relative location of resource
+              schema:
+                type: string
+        '400':
+          description: Something is wrong with the sent Account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        '500':
+          description: Something bad happened when trying create the Account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+        - Accounts
+      summary: Retrieve Accounts
+      operationId: getAccounts
+      responses:
+        '200':
+          description: Accounts were retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+        '500':
+          description: Something bad happened when trying to retrieve Accounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /accounts/{accountID}/balance:
+    get:
+      parameters:
+        - in: path
+          name: accountID
+          required: true
+          schema:
+            type: string
+      tags:
+        - Accounts
+      summary: Get Account balance by given account ID
+      operationId: getAccountBalance
+      responses:
+        '200':
+          description: Account balance was retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance:
+                    type: number
+                    format: double
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Something bad happened when trying to retrieve the account balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /transfers:
+    summary: Manage transfers by executing and retrieving it
+    description: |
+      Transfers routes are used to deal with transfers. All routes requires a token, for authentication purposes,
+      that identifies the user and its account
+    post:
+      tags:
+        - Transfers
+      summary: Transfer amount between accounts
+      security:
+        - BearerAuth: []
+      requestBody:
+        description: Transfer object to be added
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferPost'
+      responses:
+        '200':
+          description: Transferred with success
+        '400':
+          description: Something wrong with Transfer payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: User is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Something bad happened when trying to execute transfer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+        - Transfers
+      summary: Retrieve Transfers
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Retrieved with success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent:
+                    description: Transfers sent by origin account
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transfer'
+                  received:
+                    description: Transfers received by origin account
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transfer'
+        '401':
+          description: User is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
