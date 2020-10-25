@@ -11,6 +11,7 @@ import (
 	am "github.com/pedroyremolo/transfer-api/pkg/mocks/adding"
 	aum "github.com/pedroyremolo/transfer-api/pkg/mocks/authenticating"
 	lm "github.com/pedroyremolo/transfer-api/pkg/mocks/listing"
+	tm "github.com/pedroyremolo/transfer-api/pkg/mocks/transferring"
 	um "github.com/pedroyremolo/transfer-api/pkg/mocks/updating"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -25,7 +26,7 @@ func TestHandler(t *testing.T) {
 	a := &am.MockService{}
 	l := &lm.MockService{}
 	auth := &aum.MockService{}
-	tf := &mockTransferringService{}
+	tf := &tm.MockService{}
 	u := &um.MockService{}
 
 	handler := Handler(a, l, auth, tf, u)
@@ -337,7 +338,7 @@ func TestTransfer(t *testing.T) {
 		reqHeader           http.Header
 		authService         *aum.MockService
 		listingService      *lm.MockService
-		transferringService *mockTransferringService
+		transferringService *tm.MockService
 		updatingService     *um.MockService
 		addingService       *am.MockService
 		expectedResponse    string
@@ -359,7 +360,7 @@ func TestTransfer(t *testing.T) {
 			listingService: &lm.MockService{
 				Balance: 22.22,
 			},
-			transferringService: &mockTransferringService{},
+			transferringService: &tm.MockService{},
 			updatingService:     &um.MockService{},
 			addingService: &am.MockService{
 				ID: "f1869a4f9a84f89sa",
@@ -499,7 +500,7 @@ func TestTransfer(t *testing.T) {
 			listingService: &lm.MockService{
 				Balance: 22.22,
 			},
-			transferringService: &mockTransferringService{
+			transferringService: &tm.MockService{
 				Err: errors.New("not enough origin balance"),
 			},
 			expectedStatus:   http.StatusBadRequest,
@@ -520,7 +521,7 @@ func TestTransfer(t *testing.T) {
 			listingService: &lm.MockService{
 				Balance: 22.22,
 			},
-			transferringService: &mockTransferringService{},
+			transferringService: &tm.MockService{},
 			updatingService: &um.MockService{
 				Err: errors.New("foo"),
 			},
@@ -542,7 +543,7 @@ func TestTransfer(t *testing.T) {
 			listingService: &lm.MockService{
 				Balance: 22.22,
 			},
-			transferringService: &mockTransferringService{},
+			transferringService: &tm.MockService{},
 			updatingService:     &um.MockService{},
 			addingService: &am.MockService{
 				Err: errors.New("foo"),
@@ -574,14 +575,6 @@ func TestTransfer(t *testing.T) {
 			assertResponseJSON(t, w, tc.expectedResponse)
 		})
 	}
-}
-
-type mockTransferringService struct {
-	Err error
-}
-
-func (m *mockTransferringService) BalanceBetweenAccounts(originBalance float64, destinationBalance float64, _ float64) (_ float64, _ float64, _ error) {
-	return originBalance, destinationBalance, m.Err
 }
 
 func assertResponseJSON(t *testing.T, w *httptest.ResponseRecorder, expectedResponseJSON string) {
