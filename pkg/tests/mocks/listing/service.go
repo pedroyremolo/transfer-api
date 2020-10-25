@@ -6,11 +6,12 @@ import (
 )
 
 type MockService struct {
-	Balance     float64
-	Accounts    []listing.Account
-	Account     listing.Account
-	CallsToFail int
-	Err         error
+	Balance          float64
+	Accounts         []listing.Account
+	Account          listing.Account
+	AccountTransfers listing.AccountTransfers
+	CallsToFail      int
+	Err              error
 }
 
 func (s *MockService) GetAccountBalanceByID(_ context.Context, _ string) (float64, error) {
@@ -31,5 +32,5 @@ func (s *MockService) GetAccountByCPF(_ context.Context, _ string) (listing.Acco
 }
 
 func (s *MockService) GetTransfersByAccountID(ctx context.Context, id string) (listing.AccountTransfers, error) {
-	panic("implement me")
+	return s.AccountTransfers, s.Err
 }
