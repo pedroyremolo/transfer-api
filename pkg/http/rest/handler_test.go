@@ -2,7 +2,6 @@ package rest
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	am "github.com/pedroyremolo/transfer-api/pkg/mocks/adding"
+	aum "github.com/pedroyremolo/transfer-api/pkg/mocks/authenticating"
 	lm "github.com/pedroyremolo/transfer-api/pkg/mocks/listing"
 	um "github.com/pedroyremolo/transfer-api/pkg/mocks/updating"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
@@ -24,7 +24,7 @@ import (
 func TestHandler(t *testing.T) {
 	a := &am.MockService{}
 	l := &lm.MockService{}
-	auth := &mockAuthenticatingService{}
+	auth := &aum.MockService{}
 	tf := &mockTransferringService{}
 	u := &um.MockService{}
 
@@ -240,7 +240,7 @@ func TestLogin(t *testing.T) {
 		name             string
 		reqBodyJSON      string
 		listingService   *lm.MockService
-		authService      *mockAuthenticatingService
+		authService      *aum.MockService
 		expectedResponse string
 		expectedStatus   int
 	}{
@@ -250,7 +250,7 @@ func TestLogin(t *testing.T) {
 			listingService: &lm.MockService{
 				Account: account,
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: token,
 			},
 			expectedResponse: fmt.Sprintf(`{"token":"%s"}`, token.Digest),
@@ -271,7 +271,7 @@ func TestLogin(t *testing.T) {
 			listingService: &lm.MockService{
 				Account: account,
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Err: authenticating.InvalidLoginErr,
 			},
 			expectedResponse: `{"status_code":401,"message":"it seems your login credentials are invalid, verify them and try again"}`,
@@ -281,7 +281,7 @@ func TestLogin(t *testing.T) {
 			name:             "When payload is invalid",
 			reqBodyJSON:      fmt.Sprintf(`{"cpf":"%s","secret":123498}`, account.CPF),
 			listingService:   &lm.MockService{},
-			authService:      &mockAuthenticatingService{},
+			authService:      &aum.MockService{},
 			expectedResponse: `{"status_code":400,"message":"Invalid Login entity: expected type string, got number at field secret"}`,
 			expectedStatus:   http.StatusBadRequest,
 		},
@@ -291,7 +291,7 @@ func TestLogin(t *testing.T) {
 			listingService: &lm.MockService{
 				Err: errors.New("foo unexpected"),
 			},
-			authService:      &mockAuthenticatingService{},
+			authService:      &aum.MockService{},
 			expectedResponse: `{"status_code":500,"message":"foo unexpected"}`,
 			expectedStatus:   http.StatusInternalServerError,
 		},
@@ -299,7 +299,7 @@ func TestLogin(t *testing.T) {
 			name:           "When unexpected errors occurs at gatekeeper operations",
 			reqBodyJSON:    fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, account.Secret),
 			listingService: &lm.MockService{},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Err: errors.New("foo unexpected"),
 			},
 			expectedResponse: `{"status_code":500,"message":"foo unexpected"}`,
@@ -335,7 +335,7 @@ func TestTransfer(t *testing.T) {
 		name                string
 		reqBodyJSON         string
 		reqHeader           http.Header
-		authService         *mockAuthenticatingService
+		authService         *aum.MockService
 		listingService      *lm.MockService
 		transferringService *mockTransferringService
 		updatingService     *um.MockService
@@ -350,7 +350,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
@@ -402,7 +402,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Err: errors.New("foo"),
 			},
 			expectedStatus:   http.StatusUnauthorized,
@@ -415,7 +415,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
@@ -431,7 +431,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
@@ -451,7 +451,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
@@ -471,7 +471,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
@@ -491,7 +491,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
@@ -512,7 +512,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
@@ -534,7 +534,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
@@ -582,19 +582,6 @@ type mockTransferringService struct {
 
 func (m *mockTransferringService) BalanceBetweenAccounts(originBalance float64, destinationBalance float64, _ float64) (_ float64, _ float64, _ error) {
 	return originBalance, destinationBalance, m.Err
-}
-
-type mockAuthenticatingService struct {
-	Token authenticating.Token
-	Err   error
-}
-
-func (m *mockAuthenticatingService) Sign(_ context.Context, _ authenticating.Login, _ string, _ string) (authenticating.Token, error) {
-	return m.Token, m.Err
-}
-
-func (m *mockAuthenticatingService) Verify(_ context.Context, _ string) (authenticating.Token, error) {
-	return m.Token, m.Err
 }
 
 func assertResponseJSON(t *testing.T, w *httptest.ResponseRecorder, expectedResponseJSON string) {
