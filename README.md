@@ -29,8 +29,12 @@ $ go mod download
 
 ## Como usar
 
-A aplicação possui distribuição via Docker, e possui um arquivo docker-compose, sendo este o modo mais fácil de 
-executa-la localmente.
+A aplicação possui distribuição via [Docker](Dockerfile), e possui um arquivo
+[docker-compose](docker-compose.yml), sendo este o modo mais fácil de executa-la 
+localmente.
+
+Além disso, possui uma especificação [OpenAPI 3](https://swagger.io/specification/)
+através do arquivo [openapi.yml](openapi.yml).
 
 A mesma é gerenciada via variáveis de ambiente, segue abaixo a tabela:
 
