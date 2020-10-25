@@ -36,6 +36,7 @@ func Handler(a adding.Service, l listing.Service, auth authenticating.Service, t
 	router.POST("/login", login(auth, l))
 
 	router.POST("/transfers", transfer(a, auth, l, t, u))
+	router.GET("/transfers", getAccountTransfers(auth, l))
 
 	return router
 }
