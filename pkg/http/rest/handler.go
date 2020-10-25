@@ -145,7 +145,7 @@ func login(auth authenticating.Service, l listing.Service) func(w http.ResponseW
 		account, err := l.GetAccountByCPF(ctx, login.CPF)
 		if err != nil {
 			if err.Error() == mongodb.ErrNoAccountWasFound.Error() {
-				setJSONError(authenticating.InvalidLoginErr, http.StatusUnauthorized, w)
+				setJSONError(authenticating.InvalidLoginErr, http.StatusForbidden, w)
 				return
 			}
 			setJSONError(err, http.StatusInternalServerError, w)
@@ -155,7 +155,7 @@ func login(auth authenticating.Service, l listing.Service) func(w http.ResponseW
 		token, err = auth.Sign(ctx, login, account.Secret, account.ID)
 		if err != nil {
 			if err.Error() == authenticating.InvalidLoginErr.Error() {
-				setJSONError(authenticating.InvalidLoginErr, http.StatusUnauthorized, w)
+				setJSONError(authenticating.InvalidLoginErr, http.StatusForbidden, w)
 				return
 			}
 			setJSONError(err, http.StatusInternalServerError, w)
