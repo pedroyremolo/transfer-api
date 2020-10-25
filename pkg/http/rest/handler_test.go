@@ -11,8 +11,8 @@ import (
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	am "github.com/pedroyremolo/transfer-api/pkg/mocks/adding"
 	lm "github.com/pedroyremolo/transfer-api/pkg/mocks/listing"
+	um "github.com/pedroyremolo/transfer-api/pkg/mocks/updating"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
-	"github.com/pedroyremolo/transfer-api/pkg/updating"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"net/http"
@@ -26,7 +26,7 @@ func TestHandler(t *testing.T) {
 	l := &lm.MockService{}
 	auth := &mockAuthenticatingService{}
 	tf := &mockTransferringService{}
-	u := &mockUpdatingService{}
+	u := &um.MockService{}
 
 	handler := Handler(a, l, auth, tf, u)
 
@@ -338,7 +338,7 @@ func TestTransfer(t *testing.T) {
 		authService         *mockAuthenticatingService
 		listingService      *lm.MockService
 		transferringService *mockTransferringService
-		updatingService     *mockUpdatingService
+		updatingService     *um.MockService
 		addingService       *am.MockService
 		expectedResponse    string
 		expectedStatus      int
@@ -360,7 +360,7 @@ func TestTransfer(t *testing.T) {
 				Balance: 22.22,
 			},
 			transferringService: &mockTransferringService{},
-			updatingService:     &mockUpdatingService{},
+			updatingService:     &um.MockService{},
 			addingService: &am.MockService{
 				ID: "f1869a4f9a84f89sa",
 			},
@@ -521,7 +521,7 @@ func TestTransfer(t *testing.T) {
 				Balance: 22.22,
 			},
 			transferringService: &mockTransferringService{},
-			updatingService: &mockUpdatingService{
+			updatingService: &um.MockService{
 				Err: errors.New("foo"),
 			},
 			expectedResponse: `{"status_code":500,"message":"foo"}`,
@@ -543,7 +543,7 @@ func TestTransfer(t *testing.T) {
 				Balance: 22.22,
 			},
 			transferringService: &mockTransferringService{},
-			updatingService:     &mockUpdatingService{},
+			updatingService:     &um.MockService{},
 			addingService: &am.MockService{
 				Err: errors.New("foo"),
 			},
@@ -574,14 +574,6 @@ func TestTransfer(t *testing.T) {
 			assertResponseJSON(t, w, tc.expectedResponse)
 		})
 	}
-}
-
-type mockUpdatingService struct {
-	Err error
-}
-
-func (m *mockUpdatingService) UpdateAccounts(_ context.Context, _ ...updating.Account) error {
-	return m.Err
 }
 
 type mockTransferringService struct {
