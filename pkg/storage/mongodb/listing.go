@@ -95,3 +95,49 @@ func (s *Storage) GetAccounts(ctx context.Context) ([]listing.Account, error) {
 
 	return accounts, nil
 }
+
+func (s *Storage) GetTransfersByKey(ctx context.Context, key string, value string) ([]listing.Transfer, error) {
+	queryContext, cancel := context.WithTimeout(ctx, time.Second*15)
+	defer cancel()
+
+	transfers := make([]listing.Transfer, 0)
+	cur, err := s.getDocumentsByKey(queryContext, transfersCollection, key, value)
+	func() {
+		err = cur.Close(queryContext)
+		if err != nil {
+			panic(err)
+		}
+	}()
+	if err != nil {
+		return transfers, err
+	}
+	for cur.Next(queryContext) {
+		var t Transfer
+		if err = cur.Decode(&t); err != nil {
+			//TODO Log err
+			continue
+		}
+
+		transfers = append(transfers, listing.Transfer{
+			ID:                   t.ID.Hex(),
+			OriginAccountID:      t.OriginAccountID,
+			DestinationAccountID: t.DestinationAccountID,
+			Amount:               t.Amount,
+			CreatedAt:            t.CreatedAt,
+		})
+	}
+	return transfers, nil
+}
+
+func (s *Storage) getDocumentsByKey(ctx context.Context, collName string, key string, value string) (*mongo.Cursor, error) {
+	cursor, err := s.client.Database(databaseName).Collection(collName).Find(ctx, bson.D{{key, value}})
+	if err != nil {
+		curErr := cursor.Close(ctx)
+		if curErr != nil {
+			panic(curErr)
+		}
+		return nil, err
+	}
+
+	return cursor, nil
+}
