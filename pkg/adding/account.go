@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Nhanderu/brdoc"
+	"github.com/pedroyremolo/transfer-api/pkg/log/lgr"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
@@ -29,10 +30,11 @@ type (
 )
 
 func (n *name) UnmarshalJSON(b []byte) error {
+	var log = lgr.NewDefaultLogger()
 	var fullName string
 
 	if err := json.Unmarshal(b, &fullName); err != nil {
-		// TODO Err logging
+		log.Errorf("Err %v happened when unmarshal name", err)
 		return &ErrInvalidAccountField{
 			field:   "name",
 			message: "name is not of string type",
@@ -40,6 +42,7 @@ func (n *name) UnmarshalJSON(b []byte) error {
 	}
 
 	if len(fullName) == 0 {
+		log.Error("Name cannot be empty")
 		return &ErrInvalidAccountField{
 			field:   "name",
 			message: "name must be informed, therefore should not be empty",
@@ -52,17 +55,18 @@ func (n *name) UnmarshalJSON(b []byte) error {
 
 // UnmarshalJSON Unmarshaler implementation that takes the string and verify it's a valid CPF
 func (c *cpf) UnmarshalJSON(b []byte) error {
+	var log = lgr.NewDefaultLogger()
 	var document string
 	err := json.Unmarshal(b, &document)
 	if err != nil {
-		// TODO Err logging
+		log.Errorf("Err %v happened when unmarshal cpf", err)
 		return &ErrInvalidAccountField{
 			field:   "cpf",
 			message: "the informed cpf is not a string",
 		}
 	}
 	if !brdoc.IsCPF(document) {
-		// TODO Err logging
+		log.Errorf("Document %v is not a valid cpf", document)
 		return &ErrInvalidAccountField{
 			field:   "cpf",
 			message: fmt.Sprintf("%s is not a valid cpf", document),
@@ -76,11 +80,12 @@ func (c *cpf) UnmarshalJSON(b []byte) error {
 
 // UnmarshalJSON Unmarshaler implementation that takes the sent secret, as string, and encrypt it
 func (s *secret) UnmarshalJSON(b []byte) error {
+	var log = lgr.NewDefaultLogger()
 	var pswStr string
 	err := json.Unmarshal(b, &pswStr)
 
 	if err != nil {
-		//TODO Err logging
+		log.Errorf("Err %v happened when unmarshal secret", err)
 		return &ErrInvalidAccountField{
 			field:   "password",
 			message: "the informed password is not a string",
@@ -90,6 +95,7 @@ func (s *secret) UnmarshalJSON(b []byte) error {
 	password, err := bcrypt.GenerateFromPassword(b, bcrypt.DefaultCost)
 
 	if err != nil {
+		log.Error("An err occurred when encrypting secret")
 		return err
 	}
 
@@ -99,15 +105,17 @@ func (s *secret) UnmarshalJSON(b []byte) error {
 }
 
 func (bc *balance) UnmarshalJSON(b []byte) error {
+	var log = lgr.NewDefaultLogger()
 	var incomingBalance float64
 	if err := json.Unmarshal(b, &incomingBalance); err != nil {
-		// TODO Err logging
+		log.Errorf("Err %v happened when unmarshal balance", err)
 		return &ErrInvalidAccountField{
 			field:   "balance",
 			message: "the informed balance is not a number",
 		}
 	}
 	if incomingBalance < 0 {
+		log.Error("Balance cannot be negative")
 		return &ErrInvalidAccountField{
 			field:   "balance",
 			message: "can't start an account with negative balance",
