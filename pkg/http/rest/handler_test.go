@@ -2,16 +2,18 @@ package rest
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
-	"github.com/pedroyremolo/transfer-api/pkg/adding"
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
-	"github.com/pedroyremolo/transfer-api/pkg/updating"
+	am "github.com/pedroyremolo/transfer-api/pkg/tests/mocks/adding"
+	aum "github.com/pedroyremolo/transfer-api/pkg/tests/mocks/authenticating"
+	lm "github.com/pedroyremolo/transfer-api/pkg/tests/mocks/listing"
+	tm "github.com/pedroyremolo/transfer-api/pkg/tests/mocks/transferring"
+	um "github.com/pedroyremolo/transfer-api/pkg/tests/mocks/updating"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"net/http"
@@ -21,11 +23,11 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-	a := &mockAddingService{}
-	l := &mockListingService{}
-	auth := &mockAuthenticatingService{}
-	tf := &mockTransferringService{}
-	u := &mockUpdatingService{}
+	a := &am.MockService{}
+	l := &lm.MockService{}
+	auth := &aum.MockService{}
+	tf := &tm.MockService{}
+	u := &um.MockService{}
 
 	handler := Handler(a, l, auth, tf, u)
 
@@ -37,34 +39,34 @@ func TestHandler(t *testing.T) {
 func TestAddAccount(t *testing.T) {
 	tt := []struct {
 		name                string
-		service             *mockAddingService
+		service             *am.MockService
 		reqBodyJSON         string
 		expectedStatus      int
 		expectedErrResponse string
 	}{
 		{
 			name:           "When successfully returns",
-			service:        &mockAddingService{ID: "a6sf46af6af"},
+			service:        &am.MockService{ID: "a6sf46af6af"},
 			reqBodyJSON:    `{"name": "Jane Doe","cpf": "11111111030","secret": "254855","balance": 50.00}`,
 			expectedStatus: http.StatusCreated,
 		},
 		{
 			name:                "When the sent json is not valid",
-			service:             &mockAddingService{ID: ""},
+			service:             &am.MockService{ID: ""},
 			reqBodyJSON:         `{"name": "Jane Doe","cpf": "111111110301","secret": "254855","balance": 50.00}`,
 			expectedStatus:      http.StatusBadRequest,
 			expectedErrResponse: `{"status_code":400,"message":"Field cpf contains an invalid value: 111111110301 is not a valid cpf"}`,
 		},
 		{
 			name:                "When the sent cpf is already into DB",
-			service:             &mockAddingService{Err: mongodb.ErrCPFAlreadyExists},
+			service:             &am.MockService{Err: mongodb.ErrCPFAlreadyExists},
 			reqBodyJSON:         `{"name": "Jane Doe","cpf": "11111111030","secret": "254855","balance": 50.00}`,
 			expectedStatus:      http.StatusBadRequest,
 			expectedErrResponse: `{"status_code":400,"message":"this cpf could not be inserted in our DB"}`,
 		},
 		{
 			name:                "When unexpected errors inside the service occurs",
-			service:             &mockAddingService{Err: errors.New("foo")},
+			service:             &am.MockService{Err: errors.New("foo")},
 			reqBodyJSON:         `{"name": "Jane Doe","cpf": "11111111030","secret": "254855","balance": 50.00}`,
 			expectedStatus:      http.StatusInternalServerError,
 			expectedErrResponse: `{"status_code":500,"message":"foo"}`,
@@ -104,28 +106,28 @@ func TestGetAccountBalanceByID(t *testing.T) {
 	tt := []struct {
 		name             string
 		id               string
-		service          *mockListingService
+		service          *lm.MockService
 		expectedStatus   int
 		expectedResponse string
 	}{
 		{
 			name:             "When successfully returns",
 			id:               "a6sf46af6af",
-			service:          &mockListingService{Balance: 42.42},
+			service:          &lm.MockService{Balance: 42.42},
 			expectedStatus:   http.StatusOK,
 			expectedResponse: `{"balance":42.42}`,
 		},
 		{
 			name:             "When no account was found with the given id",
 			id:               "a6sf46af6af",
-			service:          &mockListingService{Err: mongodb.ErrNoAccountWasFound},
+			service:          &lm.MockService{Err: mongodb.ErrNoAccountWasFound},
 			expectedStatus:   http.StatusNotFound,
 			expectedResponse: `{"status_code":404,"message":"no account was found with the given filter parameters"}`,
 		},
 		{
 			name:             "When unexpected errors inside the service occurs",
 			id:               "a6sf46af6af",
-			service:          &mockListingService{Err: errors.New("foo")},
+			service:          &lm.MockService{Err: errors.New("foo")},
 			expectedStatus:   http.StatusInternalServerError,
 			expectedResponse: `{"status_code":500,"message":"foo"}`,
 		},
@@ -156,13 +158,13 @@ func TestGetAccounts(t *testing.T) {
 	currentTime := time.Now().UTC()
 	tt := []struct {
 		name             string
-		service          *mockListingService
+		service          *lm.MockService
 		expectedStatus   int
 		expectedResponse string
 	}{
 		{
 			name: "When successfully returns",
-			service: &mockListingService{
+			service: &lm.MockService{
 				Accounts: []listing.Account{
 					{
 						ID:        "g4a68vf6a4g96ws84g",
@@ -190,13 +192,13 @@ func TestGetAccounts(t *testing.T) {
 		},
 		{
 			name:             "When no account was found",
-			service:          &mockListingService{Accounts: []listing.Account{}},
+			service:          &lm.MockService{Accounts: []listing.Account{}},
 			expectedStatus:   http.StatusOK,
 			expectedResponse: `[]`,
 		},
 		{
 			name:             "When unexpected errors inside the service occurs",
-			service:          &mockListingService{Err: errors.New("foo")},
+			service:          &lm.MockService{Err: errors.New("foo")},
 			expectedStatus:   http.StatusInternalServerError,
 			expectedResponse: `{"status_code":500,"message":"foo"}`,
 		},
@@ -238,18 +240,18 @@ func TestLogin(t *testing.T) {
 	tt := []struct {
 		name             string
 		reqBodyJSON      string
-		listingService   *mockListingService
-		authService      *mockAuthenticatingService
+		listingService   *lm.MockService
+		authService      *aum.MockService
 		expectedResponse string
 		expectedStatus   int
 	}{
 		{
 			name:        "When login credentials are okay and token is successfully generated",
 			reqBodyJSON: fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, account.Secret),
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				Account: account,
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: token,
 			},
 			expectedResponse: fmt.Sprintf(`{"token":"%s"}`, token.Digest),
@@ -258,7 +260,7 @@ func TestLogin(t *testing.T) {
 		{
 			name:        "When cpf credential is not in our repository",
 			reqBodyJSON: fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, account.Secret),
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				Err: mongodb.ErrNoAccountWasFound,
 			},
 			expectedResponse: `{"status_code":401,"message":"it seems your login credentials are invalid, verify them and try again"}`,
@@ -267,10 +269,10 @@ func TestLogin(t *testing.T) {
 		{
 			name:        "When cpf credential is in our repository, but password is invalid",
 			reqBodyJSON: fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, "deuruim"),
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				Account: account,
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Err: authenticating.InvalidLoginErr,
 			},
 			expectedResponse: `{"status_code":401,"message":"it seems your login credentials are invalid, verify them and try again"}`,
@@ -279,26 +281,26 @@ func TestLogin(t *testing.T) {
 		{
 			name:             "When payload is invalid",
 			reqBodyJSON:      fmt.Sprintf(`{"cpf":"%s","secret":123498}`, account.CPF),
-			listingService:   &mockListingService{},
-			authService:      &mockAuthenticatingService{},
+			listingService:   &lm.MockService{},
+			authService:      &aum.MockService{},
 			expectedResponse: `{"status_code":400,"message":"Invalid Login entity: expected type string, got number at field secret"}`,
 			expectedStatus:   http.StatusBadRequest,
 		},
 		{
 			name:        "When unexpected errors occurs at repo operations",
 			reqBodyJSON: fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, account.Secret),
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				Err: errors.New("foo unexpected"),
 			},
-			authService:      &mockAuthenticatingService{},
+			authService:      &aum.MockService{},
 			expectedResponse: `{"status_code":500,"message":"foo unexpected"}`,
 			expectedStatus:   http.StatusInternalServerError,
 		},
 		{
 			name:           "When unexpected errors occurs at gatekeeper operations",
 			reqBodyJSON:    fmt.Sprintf(`{"cpf":"%s","secret":"%s"}`, account.CPF, account.Secret),
-			listingService: &mockListingService{},
-			authService: &mockAuthenticatingService{
+			listingService: &lm.MockService{},
+			authService: &aum.MockService{
 				Err: errors.New("foo unexpected"),
 			},
 			expectedResponse: `{"status_code":500,"message":"foo unexpected"}`,
@@ -334,11 +336,11 @@ func TestTransfer(t *testing.T) {
 		name                string
 		reqBodyJSON         string
 		reqHeader           http.Header
-		authService         *mockAuthenticatingService
-		listingService      *mockListingService
-		transferringService *mockTransferringService
-		updatingService     *mockUpdatingService
-		addingService       *mockAddingService
+		authService         *aum.MockService
+		listingService      *lm.MockService
+		transferringService *tm.MockService
+		updatingService     *um.MockService
+		addingService       *am.MockService
 		expectedResponse    string
 		expectedStatus      int
 	}{
@@ -349,18 +351,18 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
 				Err: nil,
 			},
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				Balance: 22.22,
 			},
-			transferringService: &mockTransferringService{},
-			updatingService:     &mockUpdatingService{},
-			addingService: &mockAddingService{
+			transferringService: &tm.MockService{},
+			updatingService:     &um.MockService{},
+			addingService: &am.MockService{
 				ID: "f1869a4f9a84f89sa",
 			},
 			expectedStatus: http.StatusOK,
@@ -401,7 +403,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Err: errors.New("foo"),
 			},
 			expectedStatus:   http.StatusUnauthorized,
@@ -414,7 +416,7 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
@@ -430,13 +432,13 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
 				Err: nil,
 			},
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				CallsToFail: 1,
 				Err:         errors.New("foo"),
 			},
@@ -450,13 +452,13 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
 				Err: nil,
 			},
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				CallsToFail: 2,
 				Err:         errors.New("foo"),
 			},
@@ -470,13 +472,13 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
 				Err: nil,
 			},
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				CallsToFail: 2,
 				Err:         errors.New("no account was found with the given filter parameters"),
 			},
@@ -490,15 +492,15 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
 			},
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				Balance: 22.22,
 			},
-			transferringService: &mockTransferringService{
+			transferringService: &tm.MockService{
 				Err: errors.New("not enough origin balance"),
 			},
 			expectedStatus:   http.StatusBadRequest,
@@ -511,16 +513,16 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
 			},
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				Balance: 22.22,
 			},
-			transferringService: &mockTransferringService{},
-			updatingService: &mockUpdatingService{
+			transferringService: &tm.MockService{},
+			updatingService: &um.MockService{
 				Err: errors.New("foo"),
 			},
 			expectedResponse: `{"status_code":500,"message":"foo"}`,
@@ -533,17 +535,17 @@ func TestTransfer(t *testing.T) {
 				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
 				"Content-Type":  []string{"application/json"},
 			},
-			authService: &mockAuthenticatingService{
+			authService: &aum.MockService{
 				Token: authenticating.Token{
 					ClientID: "4f98as4f98sa496a1f",
 				},
 			},
-			listingService: &mockListingService{
+			listingService: &lm.MockService{
 				Balance: 22.22,
 			},
-			transferringService: &mockTransferringService{},
-			updatingService:     &mockUpdatingService{},
-			addingService: &mockAddingService{
+			transferringService: &tm.MockService{},
+			updatingService:     &um.MockService{},
+			addingService: &am.MockService{
 				Err: errors.New("foo"),
 			},
 			expectedResponse: `{"status_code":500,"message":"foo"}`,
@@ -575,71 +577,104 @@ func TestTransfer(t *testing.T) {
 	}
 }
 
-type mockAddingService struct {
-	ID  string
-	Err error
-}
-
-func (m *mockAddingService) AddAccount(_ context.Context, _ adding.Account) (string, error) {
-	return m.ID, m.Err
-}
-
-func (m *mockAddingService) AddTransfer(_ context.Context, _ adding.Transfer) (string, error) {
-	return m.ID, m.Err
-}
-
-type mockListingService struct {
-	Balance     float64
-	Accounts    []listing.Account
-	Account     listing.Account
-	CallsToFail int
-	Err         error
-}
-
-func (m *mockListingService) GetAccountBalanceByID(_ context.Context, _ string) (float64, error) {
-	var err error
-	m.CallsToFail--
-	if m.CallsToFail <= 0 {
-		err = m.Err
+func TestGetAccountTransfers(t *testing.T) {
+	defaultClientID := "jff46as84dcsa365418"
+	defaultSentTransfer := listing.Transfer{
+		ID:                   "4as6g84as68gf4as",
+		OriginAccountID:      defaultClientID,
+		DestinationAccountID: "4896as4rfa689tqwrtg",
+		Amount:               23.32,
+		CreatedAt:            time.Time{},
 	}
-	return m.Balance, err
-}
+	defaultReceivedTransfer := listing.Transfer{
+		ID:                   "t4a8g496ag49ga",
+		OriginAccountID:      "4896as4rfa689tqwrtg",
+		DestinationAccountID: defaultClientID,
+		Amount:               23.32,
+		CreatedAt:            time.Time{},
+	}
+	tt := []struct {
+		name             string
+		reqHeader        http.Header
+		authService      *aum.MockService
+		listingService   *lm.MockService
+		expectedResponse string
+		expectedStatus   int
+	}{
+		{
+			name: "When successfully retrieves account transfers",
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+			},
+			authService: &aum.MockService{
+				Token: authenticating.Token{
+					ClientID: "4a6s8f4a8f4a",
+				},
+				Err: nil,
+			},
+			listingService: &lm.MockService{
+				AccountTransfers: listing.AccountTransfers{
+					Sent:     []listing.Transfer{defaultSentTransfer},
+					Received: []listing.Transfer{defaultReceivedTransfer},
+				},
+				Err: nil,
+			},
+			expectedResponse: `{"sent":[{"id":"4as6g84as68gf4as","account_origin_id":"jff46as84dcsa365418","account_destination_id":"4896as4rfa689tqwrtg","amount":23.32,"created_at":"0001-01-01T00:00:00Z"}],"received":[{"id":"t4a8g496ag49ga","account_origin_id":"4896as4rfa689tqwrtg","account_destination_id":"jff46as84dcsa365418","amount":23.32,"created_at":"0001-01-01T00:00:00Z"}]}`,
+			expectedStatus:   http.StatusOK,
+		},
+		{
+			name: "When unauthorized to retrieve account transfers",
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearerea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+			},
+			authService: &aum.MockService{
+				Token: authenticating.Token{
+					ClientID: "4a6s8f4a8f4a",
+				},
+				Err: nil,
+			},
+			listingService: &lm.MockService{
+				Err: errors.New("db error"),
+			},
+			expectedResponse: `{"status_code":401,"message":"it seems you don't have or didn't pass valid credentials to this route"}`,
+			expectedStatus:   http.StatusUnauthorized,
+		},
+		{
+			name: "When fails to retrieve account transfers",
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+			},
+			authService: &aum.MockService{
+				Token: authenticating.Token{
+					ClientID: "4a6s8f4a8f4a",
+				},
+				Err: nil,
+			},
+			listingService: &lm.MockService{
+				Err: errors.New("db error"),
+			},
+			expectedResponse: `{"status_code":500,"message":"db error"}`,
+			expectedStatus:   http.StatusInternalServerError,
+		},
+	}
 
-func (m *mockListingService) GetAccounts(_ context.Context) ([]listing.Account, error) {
-	return m.Accounts, m.Err
-}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/transfers", nil)
+			r.Header = tc.reqHeader
 
-func (m *mockListingService) GetAccountByCPF(_ context.Context, _ string) (listing.Account, error) {
-	return m.Account, m.Err
-}
+			h := getAccountTransfers(tc.authService, tc.listingService)
 
-type mockUpdatingService struct {
-	Err error
-}
+			h(w, r, nil)
 
-func (m *mockUpdatingService) UpdateAccounts(_ context.Context, _ ...updating.Account) error {
-	return m.Err
-}
+			if w.Code != tc.expectedStatus {
+				t.Errorf("Expected response status %v; got %v", tc.expectedStatus, w.Code)
+			}
 
-type mockTransferringService struct {
-	Err error
-}
-
-func (m *mockTransferringService) BalanceBetweenAccounts(originBalance float64, destinationBalance float64, _ float64) (_ float64, _ float64, _ error) {
-	return originBalance, destinationBalance, m.Err
-}
-
-type mockAuthenticatingService struct {
-	Token authenticating.Token
-	Err   error
-}
-
-func (m *mockAuthenticatingService) Sign(_ context.Context, _ authenticating.Login, _ string, _ string) (authenticating.Token, error) {
-	return m.Token, m.Err
-}
-
-func (m *mockAuthenticatingService) Verify(_ context.Context, _ string) (authenticating.Token, error) {
-	return m.Token, m.Err
+			assertResponseJSON(t, w, tc.expectedResponse)
+		})
+	}
 }
 
 func assertResponseJSON(t *testing.T, w *httptest.ResponseRecorder, expectedResponseJSON string) {

@@ -36,6 +36,7 @@ func Handler(a adding.Service, l listing.Service, auth authenticating.Service, t
 	router.POST("/login", login(auth, l))
 
 	router.POST("/transfers", transfer(a, auth, l, t, u))
+	router.GET("/transfers", getAccountTransfers(auth, l))
 
 	return router
 }
@@ -168,22 +169,19 @@ func login(auth authenticating.Service, l listing.Service) func(w http.ResponseW
 
 func transfer(a adding.Service, auth authenticating.Service, l listing.Service, t transferring.Service, u updating.Service) func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		// Authentication
 		ctx := r.Context()
 		token, err := verifyTokenFromAuthHeader(r, auth, ctx)
 		if err != nil {
 			setJSONError(err, http.StatusUnauthorized, w)
 			return
 		}
-		// End Authentication
-		// Extract req body
+
 		var transfer adding.Transfer
 		if err := decodeJSON(r, &transfer); err != nil {
 			setJSONError(err, http.StatusBadRequest, w)
 			return
 		}
-		// End extract req body
-		// Get account balances
+
 		originBalance, err := l.GetAccountBalanceByID(ctx, token.ClientID)
 		if err != nil {
 			setJSONError(err, http.StatusInternalServerError, w)
@@ -198,8 +196,7 @@ func transfer(a adding.Service, auth authenticating.Service, l listing.Service, 
 			setJSONError(err, http.StatusInternalServerError, w)
 			return
 		}
-		// End get account balances
-		// Transfer
+
 		var origin, destination updating.Account
 		origin.ID = token.ClientID
 		destination.ID = transfer.DestinationAccountID
@@ -217,7 +214,26 @@ func transfer(a adding.Service, auth authenticating.Service, l listing.Service, 
 		if _, err = a.AddTransfer(ctx, transfer); err != nil {
 			setJSONError(err, http.StatusInternalServerError, w)
 		}
-		// End transfer
+	}
+}
+
+func getAccountTransfers(auth authenticating.Service, l listing.Service) func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		ctx := r.Context()
+		token, err := verifyTokenFromAuthHeader(r, auth, ctx)
+		if err != nil {
+			setJSONError(err, http.StatusUnauthorized, w)
+			return
+		}
+
+		accountTransfers, err := l.GetTransfersByAccountID(ctx, token.ClientID)
+		if err != nil {
+			setJSONError(err, http.StatusInternalServerError, w)
+			return
+		}
+
+		w.Header().Set("Content-Type", defaultContentType)
+		_ = json.NewEncoder(w).Encode(accountTransfers)
 	}
 }
 
