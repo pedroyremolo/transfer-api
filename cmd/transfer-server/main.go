@@ -9,6 +9,8 @@ import (
 	"github.com/pedroyremolo/transfer-api/pkg/http/rest"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
+	"github.com/pedroyremolo/transfer-api/pkg/transferring"
+	"github.com/pedroyremolo/transfer-api/pkg/updating"
 	"log"
 	"net/http"
 	"os"
@@ -35,8 +37,10 @@ func main() {
 	adder = adding.NewService(storage)
 	lister = listing.NewService(storage)
 	authenticator := authenticating.NewService(storage, gatekeeper)
+	transferor := transferring.NewService()
+	updater := updating.NewService(storage)
 
-	handler := rest.Handler(adder, lister, authenticator)
+	handler := rest.Handler(adder, lister, authenticator, transferor, updater)
 	port, err = strconv.Atoi(os.Getenv("APP_PORT"))
 	if err != nil {
 		port = 8080

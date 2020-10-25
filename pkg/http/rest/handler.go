@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,8 +10,11 @@ import (
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
+	"github.com/pedroyremolo/transfer-api/pkg/transferring"
+	"github.com/pedroyremolo/transfer-api/pkg/updating"
 	"log"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -20,6 +24,20 @@ const (
 type ErrorResponse struct {
 	StatusCode int    `json:"status_code"`
 	Message    string `json:"message"`
+}
+
+func Handler(a adding.Service, l listing.Service, auth authenticating.Service, t transferring.Service, u updating.Service) http.Handler {
+	router := httprouter.New()
+
+	router.POST("/accounts", addAccount(a))
+	router.GET("/accounts", getAccounts(l))
+	router.GET("/accounts/:id/balance", getAccountBalanceByID(l))
+
+	router.POST("/login", login(auth, l))
+
+	router.POST("/transfers", transfer(a, auth, l, t, u))
+
+	return router
 }
 
 func setJSONError(err error, status int, w http.ResponseWriter) {
@@ -45,16 +63,13 @@ func setJSONError(err error, status int, w http.ResponseWriter) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func Handler(a adding.Service, l listing.Service, auth authenticating.Service) http.Handler {
-	router := httprouter.New()
+func decodeJSON(r *http.Request, v interface{}) error {
+	decoder := json.NewDecoder(r.Body)
 
-	router.POST("/accounts", addAccount(a))
-	router.GET("/accounts", getAccounts(l))
-	router.GET("/accounts/:id/balance", getAccountBalanceByID(l))
-
-	router.POST("/login", login(auth, l))
-
-	return router
+	if err := decoder.Decode(v); err != nil {
+		return err
+	}
+	return nil
 }
 
 func addAccount(a adding.Service) func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -149,4 +164,83 @@ func login(auth authenticating.Service, l listing.Service) func(w http.ResponseW
 		w.Header().Set("Content-Type", defaultContentType)
 		_ = json.NewEncoder(w).Encode(authenticating.Token{Digest: token.Digest})
 	}
+}
+
+func transfer(a adding.Service, auth authenticating.Service, l listing.Service, t transferring.Service, u updating.Service) func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		// Authentication
+		ctx := r.Context()
+		token, err := verifyTokenFromAuthHeader(r, auth, ctx)
+		if err != nil {
+			setJSONError(err, http.StatusUnauthorized, w)
+			return
+		}
+		// End Authentication
+		// Extract req body
+		var transfer adding.Transfer
+		if err := decodeJSON(r, &transfer); err != nil {
+			setJSONError(err, http.StatusBadRequest, w)
+			return
+		}
+		// End extract req body
+		// Get account balances
+		originBalance, err := l.GetAccountBalanceByID(ctx, token.ClientID)
+		if err != nil {
+			setJSONError(err, http.StatusInternalServerError, w)
+			return
+		}
+		destinationBalance, err := l.GetAccountBalanceByID(ctx, token.ClientID)
+		if err != nil {
+			if err.Error() == mongodb.ErrNoAccountWasFound.Error() {
+				setJSONError(err, http.StatusBadRequest, w)
+				return
+			}
+			setJSONError(err, http.StatusInternalServerError, w)
+			return
+		}
+		// End get account balances
+		// Transfer
+		var origin, destination updating.Account
+		origin.ID = token.ClientID
+		destination.ID = transfer.DestinationAccountID
+		transfer.OriginAccountID = token.ClientID
+
+		origin.Balance, destination.Balance, err = t.BalanceBetweenAccounts(originBalance, destinationBalance, transfer.Amount)
+		if err != nil {
+			setJSONError(err, http.StatusBadRequest, w)
+			return
+		}
+		if err = u.UpdateAccounts(ctx, origin, destination); err != nil {
+			setJSONError(err, http.StatusInternalServerError, w)
+			return
+		}
+		if _, err = a.AddTransfer(ctx, transfer); err != nil {
+			setJSONError(err, http.StatusInternalServerError, w)
+		}
+		// End transfer
+	}
+}
+
+func verifyTokenFromAuthHeader(r *http.Request, auth authenticating.Service, ctx context.Context) (authenticating.Token, error) {
+	authHd := r.Header.Get("Authorization")
+	if authHd == "" {
+		// TODO Log Err
+		return authenticating.Token{}, authenticating.ProtectedRouteErr
+	}
+	hdSpaceIndex := strings.Index(authHd, " ")
+	if hdSpaceIndex == -1 {
+		// TODO Log Err
+		return authenticating.Token{}, authenticating.ProtectedRouteErr
+	}
+	authType, tokenDigest := authHd[:hdSpaceIndex], authHd[strings.LastIndex(authHd, " ")+1:]
+	if authType != "Bearer" {
+		// TODO Log Err
+		return authenticating.Token{}, authenticating.ProtectedRouteErr
+	}
+
+	token, err := auth.Verify(ctx, tokenDigest)
+	if err != nil {
+		return authenticating.Token{}, authenticating.ProtectedRouteErr
+	}
+	return token, err
 }

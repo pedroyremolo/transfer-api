@@ -11,6 +11,7 @@ import (
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
+	"github.com/pedroyremolo/transfer-api/pkg/updating"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"net/http"
@@ -23,7 +24,10 @@ func TestHandler(t *testing.T) {
 	a := &mockAddingService{}
 	l := &mockListingService{}
 	auth := &mockAuthenticatingService{}
-	handler := Handler(a, l, auth)
+	tf := &mockTransferringService{}
+	u := &mockUpdatingService{}
+
+	handler := Handler(a, l, auth, tf, u)
 
 	if handler == nil {
 		t.Errorf("Expected an implementation of http.Handler, got %s", handler)
@@ -325,6 +329,252 @@ func TestLogin(t *testing.T) {
 	}
 }
 
+func TestTransfer(t *testing.T) {
+	tt := []struct {
+		name                string
+		reqBodyJSON         string
+		reqHeader           http.Header
+		authService         *mockAuthenticatingService
+		listingService      *mockListingService
+		transferringService *mockTransferringService
+		updatingService     *mockUpdatingService
+		addingService       *mockAddingService
+		expectedResponse    string
+		expectedStatus      int
+	}{
+		{
+			name:        "When transfer successfully occurs",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			authService: &mockAuthenticatingService{
+				Token: authenticating.Token{
+					ClientID: "4f98as4f98sa496a1f",
+				},
+				Err: nil,
+			},
+			listingService: &mockListingService{
+				Balance: 22.22,
+			},
+			transferringService: &mockTransferringService{},
+			updatingService:     &mockUpdatingService{},
+			addingService: &mockAddingService{
+				ID: "f1869a4f9a84f89sa",
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:        "When no auth header is sent",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+			expectedStatus:   http.StatusUnauthorized,
+			expectedResponse: `{"status_code":401,"message":"it seems you don't have or didn't pass valid credentials to this route"}`,
+		},
+		{
+			name:        "When malformed auth header is sent",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearerea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			expectedStatus:   http.StatusUnauthorized,
+			expectedResponse: `{"status_code":401,"message":"it seems you don't have or didn't pass valid credentials to this route"}`,
+		},
+		{
+			name:        "When auth header is not of Bearer type",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Basic ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			expectedStatus:   http.StatusUnauthorized,
+			expectedResponse: `{"status_code":401,"message":"it seems you don't have or didn't pass valid credentials to this route"}`,
+		},
+		{
+			name:        "When auth header contains an invalid token",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			authService: &mockAuthenticatingService{
+				Err: errors.New("foo"),
+			},
+			expectedStatus:   http.StatusUnauthorized,
+			expectedResponse: `{"status_code":401,"message":"it seems you don't have or didn't pass valid credentials to this route"}`,
+		},
+		{
+			name:        "When req body cannot be deserialized as transfer",
+			reqBodyJSON: `{"account_destination_id":123,"amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			authService: &mockAuthenticatingService{
+				Token: authenticating.Token{
+					ClientID: "4f98as4f98sa496a1f",
+				},
+				Err: nil,
+			},
+			expectedStatus:   http.StatusBadRequest,
+			expectedResponse: `{"status_code":400,"message":"Invalid Transfer entity: expected type string, got number at field account_destination_id"}`,
+		},
+		{
+			name:        "When fails to retrieve origin account balance",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			authService: &mockAuthenticatingService{
+				Token: authenticating.Token{
+					ClientID: "4f98as4f98sa496a1f",
+				},
+				Err: nil,
+			},
+			listingService: &mockListingService{
+				CallsToFail: 1,
+				Err:         errors.New("foo"),
+			},
+			expectedStatus:   http.StatusInternalServerError,
+			expectedResponse: `{"status_code":500,"message":"foo"}`,
+		},
+		{
+			name:        "When fails to retrieve destination account balance",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			authService: &mockAuthenticatingService{
+				Token: authenticating.Token{
+					ClientID: "4f98as4f98sa496a1f",
+				},
+				Err: nil,
+			},
+			listingService: &mockListingService{
+				CallsToFail: 2,
+				Err:         errors.New("foo"),
+			},
+			expectedStatus:   http.StatusInternalServerError,
+			expectedResponse: `{"status_code":500,"message":"foo"}`,
+		},
+		{
+			name:        "When there's no destination account with the informed id",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			authService: &mockAuthenticatingService{
+				Token: authenticating.Token{
+					ClientID: "4f98as4f98sa496a1f",
+				},
+				Err: nil,
+			},
+			listingService: &mockListingService{
+				CallsToFail: 2,
+				Err:         errors.New("no account was found with the given filter parameters"),
+			},
+			expectedStatus:   http.StatusBadRequest,
+			expectedResponse: `{"status_code":400,"message":"no account was found with the given filter parameters"}`,
+		},
+		{
+			name:        "When origin account has not enough balance to transfer",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			authService: &mockAuthenticatingService{
+				Token: authenticating.Token{
+					ClientID: "4f98as4f98sa496a1f",
+				},
+			},
+			listingService: &mockListingService{
+				Balance: 22.22,
+			},
+			transferringService: &mockTransferringService{
+				Err: errors.New("not enough origin balance"),
+			},
+			expectedStatus:   http.StatusBadRequest,
+			expectedResponse: `{"status_code":400,"message":"not enough origin balance"}`,
+		},
+		{
+			name:        "When fails to update accounts balances",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			authService: &mockAuthenticatingService{
+				Token: authenticating.Token{
+					ClientID: "4f98as4f98sa496a1f",
+				},
+			},
+			listingService: &mockListingService{
+				Balance: 22.22,
+			},
+			transferringService: &mockTransferringService{},
+			updatingService: &mockUpdatingService{
+				Err: errors.New("foo"),
+			},
+			expectedResponse: `{"status_code":500,"message":"foo"}`,
+			expectedStatus:   http.StatusInternalServerError,
+		},
+		{
+			name:        "When fails to add transfers to db",
+			reqBodyJSON: `{"account_destination_id":"5f8f8ccb30a1cd7511c5cb70","amount":11.11}`,
+			reqHeader: http.Header{
+				"Authorization": []string{"Bearer ea4984da84fa8e.ae498f4a9e8f.af84a9f64a9"},
+				"Content-Type":  []string{"application/json"},
+			},
+			authService: &mockAuthenticatingService{
+				Token: authenticating.Token{
+					ClientID: "4f98as4f98sa496a1f",
+				},
+			},
+			listingService: &mockListingService{
+				Balance: 22.22,
+			},
+			transferringService: &mockTransferringService{},
+			updatingService:     &mockUpdatingService{},
+			addingService: &mockAddingService{
+				Err: errors.New("foo"),
+			},
+			expectedResponse: `{"status_code":500,"message":"foo"}`,
+			expectedStatus:   http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			var reqBody string
+			jsonBuffer := bytes.NewBuffer([]byte(tc.reqBodyJSON))
+			if err := json.NewEncoder(jsonBuffer).Encode(reqBody); err != nil {
+				t.Fatalf("Could not encode %s as json", tc.reqBodyJSON)
+			}
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodPost, "/transfers", jsonBuffer)
+			r.Header = tc.reqHeader
+			h := transfer(tc.addingService, tc.authService, tc.listingService, tc.transferringService, tc.updatingService)
+
+			h(w, r, nil)
+
+			if w.Code != tc.expectedStatus {
+				t.Errorf("Expected response status %v; got %v", tc.expectedStatus, w.Code)
+			}
+
+			assertResponseJSON(t, w, tc.expectedResponse)
+		})
+	}
+}
+
 type mockAddingService struct {
 	ID  string
 	Err error
@@ -339,14 +589,20 @@ func (m *mockAddingService) AddTransfer(_ context.Context, _ adding.Transfer) (s
 }
 
 type mockListingService struct {
-	Balance  float64
-	Accounts []listing.Account
-	Account  listing.Account
-	Err      error
+	Balance     float64
+	Accounts    []listing.Account
+	Account     listing.Account
+	CallsToFail int
+	Err         error
 }
 
 func (m *mockListingService) GetAccountBalanceByID(_ context.Context, _ string) (float64, error) {
-	return m.Balance, m.Err
+	var err error
+	m.CallsToFail--
+	if m.CallsToFail <= 0 {
+		err = m.Err
+	}
+	return m.Balance, err
 }
 
 func (m *mockListingService) GetAccounts(_ context.Context) ([]listing.Account, error) {
@@ -355,6 +611,22 @@ func (m *mockListingService) GetAccounts(_ context.Context) ([]listing.Account, 
 
 func (m *mockListingService) GetAccountByCPF(_ context.Context, _ string) (listing.Account, error) {
 	return m.Account, m.Err
+}
+
+type mockUpdatingService struct {
+	Err error
+}
+
+func (m *mockUpdatingService) UpdateAccounts(_ context.Context, _ ...updating.Account) error {
+	return m.Err
+}
+
+type mockTransferringService struct {
+	Err error
+}
+
+func (m *mockTransferringService) BalanceBetweenAccounts(originBalance float64, destinationBalance float64, _ float64) (_ float64, _ float64, _ error) {
+	return originBalance, destinationBalance, m.Err
 }
 
 type mockAuthenticatingService struct {
@@ -367,7 +639,7 @@ func (m *mockAuthenticatingService) Sign(_ context.Context, _ authenticating.Log
 }
 
 func (m *mockAuthenticatingService) Verify(_ context.Context, _ string) (authenticating.Token, error) {
-	panic("implement me")
+	return m.Token, m.Err
 }
 
 func assertResponseJSON(t *testing.T, w *httptest.ResponseRecorder, expectedResponseJSON string) {

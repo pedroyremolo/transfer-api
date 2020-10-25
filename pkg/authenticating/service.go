@@ -9,6 +9,7 @@ import (
 )
 
 var InvalidLoginErr = errors.New("it seems your login credentials are invalid, verify them and try again")
+var ProtectedRouteErr = errors.New("it seems you don't have or didn't pass valid credentials to this route")
 
 type Service interface {
 	Sign(ctx context.Context, login Login, secretDigest string, clientID string) (Token, error)
