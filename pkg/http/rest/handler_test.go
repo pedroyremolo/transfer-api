@@ -613,6 +613,10 @@ func (m *mockListingService) GetAccountByCPF(_ context.Context, _ string) (listi
 	return m.Account, m.Err
 }
 
+func (m *mockListingService) GetTransfersByAccountID(ctx context.Context, id string) (listing.AccountTransfers, error) {
+	panic("implement me")
+}
+
 type mockUpdatingService struct {
 	Err error
 }
