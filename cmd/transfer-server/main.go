@@ -8,16 +8,17 @@ import (
 	"github.com/pedroyremolo/transfer-api/pkg/gatekeeper/jwt"
 	"github.com/pedroyremolo/transfer-api/pkg/http/rest"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
+	"github.com/pedroyremolo/transfer-api/pkg/log/lgr"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
 	"github.com/pedroyremolo/transfer-api/pkg/transferring"
 	"github.com/pedroyremolo/transfer-api/pkg/updating"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 )
 
 func main() {
+	log := lgr.NewDefaultLogger()
 	var adder adding.Service
 	var lister listing.Service
 	var port int
@@ -46,6 +47,6 @@ func main() {
 		port = 8080
 	}
 	portStr := fmt.Sprintf(":%d", port)
-	fmt.Printf("Starting server at port %s", portStr)
+	log.Infof("Starting server at port %s", portStr)
 	log.Fatal(http.ListenAndServe(portStr, handler))
 }
