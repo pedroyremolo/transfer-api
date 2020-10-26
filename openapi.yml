@@ -5,6 +5,13 @@ info:
   description: "This API aims to manage internal accounts transferring of a digital bank"
 components:
   schemas:
+    Login:
+      type: object
+      properties:
+        cpf:
+          type: string
+        secret:
+          type: string
     Account:
       type: object
       properties:
@@ -73,6 +80,11 @@ paths:
     post:
       summary: Login
       operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
       responses:
         '200':
           description: User authenticated
