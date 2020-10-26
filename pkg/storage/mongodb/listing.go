@@ -106,13 +106,14 @@ func (s *Storage) GetAccounts(ctx context.Context) ([]listing.Account, error) {
 	return accounts, nil
 }
 
-func (s *Storage) GetTransfersByKey(ctx context.Context, key string, value string) ([]listing.Transfer, error) {
-	queryContext, cancel := context.WithTimeout(ctx, time.Second*15)
+func (s *Storage) GetTransfersByKey(ctx context.Context, transferKey string, transferValue string) ([]listing.Transfer, error) {
+	queryContext, cancel := context.WithTimeout(ctx, time.Second*100)
 	defer cancel()
 
-	s.log.Infof("Retrieving transfers by %s with value %s of mongodb repo coll %s", key, value, transfersCollection)
+	s.log.Infof("Retrieving transfers by %s with transferValue %s of mongodb repo coll %s", transferKey, transferValue, transfersCollection)
 	transfers := make([]listing.Transfer, 0)
-	cur, err := s.getDocumentsByKey(queryContext, transfersCollection, key, value)
+	oid, _ := primitive.ObjectIDFromHex(transferValue)
+	cur, err := s.client.Database(databaseName).Collection(transfersCollection).Find(ctx, bson.D{{Key: transferKey, Value: oid}})
 	func() {
 		err = cur.Close(queryContext)
 		if err != nil {
@@ -121,7 +122,7 @@ func (s *Storage) GetTransfersByKey(ctx context.Context, key string, value strin
 		}
 	}()
 	if err != nil {
-		s.log.Errorf("Err %v occurred when retrieving transfers by %s with value %s", err, key, value)
+		s.log.Errorf("Err %v occurred when retrieving transfers by %s with transferValue %s", err, transferKey, transferValue)
 		return transfers, err
 	}
 	for cur.Next(queryContext) {
@@ -133,24 +134,11 @@ func (s *Storage) GetTransfersByKey(ctx context.Context, key string, value strin
 
 		transfers = append(transfers, listing.Transfer{
 			ID:                   t.ID.Hex(),
-			OriginAccountID:      t.OriginAccountID,
-			DestinationAccountID: t.DestinationAccountID,
+			OriginAccountID:      t.OriginAccountID.Hex(),
+			DestinationAccountID: t.DestinationAccountID.Hex(),
 			Amount:               t.Amount,
 			CreatedAt:            t.CreatedAt,
 		})
 	}
 	return transfers, nil
-}
-
-func (s *Storage) getDocumentsByKey(ctx context.Context, collName string, key string, value string) (*mongo.Cursor, error) {
-	cursor, err := s.client.Database(databaseName).Collection(collName).Find(ctx, bson.M{key: value})
-	if err != nil {
-		curErr := cursor.Close(ctx)
-		if curErr != nil {
-			panic(curErr)
-		}
-		return nil, err
-	}
-
-	return cursor, nil
 }

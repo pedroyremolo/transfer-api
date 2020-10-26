@@ -36,10 +36,12 @@ func (s *Storage) AddTransfer(ctx context.Context, transfer adding.Transfer) (st
 	defer cancel()
 
 	s.log.Infof("Adding transfer %v to mongodb repo coll %s", transfer, collection.Name())
+	originOID, _ := primitive.ObjectIDFromHex(transfer.OriginAccountID)
+	transferOID, _ := primitive.ObjectIDFromHex(transfer.DestinationAccountID)
 	dbTransfer := Transfer{
 		ID:                   primitive.NewObjectID(),
-		OriginAccountID:      transfer.OriginAccountID,
-		DestinationAccountID: transfer.DestinationAccountID,
+		OriginAccountID:      originOID,
+		DestinationAccountID: transferOID,
 		Amount:               transfer.Amount,
 		CreatedAt:            transfer.CreatedAt,
 	}
