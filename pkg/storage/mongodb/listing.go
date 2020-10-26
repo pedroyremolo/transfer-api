@@ -114,7 +114,7 @@ func (s *Storage) GetTransfersByKey(ctx context.Context, transferKey string, tra
 	transfers := make([]listing.Transfer, 0)
 	oid, _ := primitive.ObjectIDFromHex(transferValue)
 	cur, err := s.client.Database(databaseName).Collection(transfersCollection).Find(ctx, bson.D{{Key: transferKey, Value: oid}})
-	func() {
+	defer func() {
 		err = cur.Close(queryContext)
 		if err != nil {
 			s.log.Panicf("Err %v occurred when closing cursor", err)
