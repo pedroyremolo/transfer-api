@@ -12,6 +12,7 @@ import (
 func (s *Storage) UpdateAccounts(ctx context.Context, accounts []updating.Account) error {
 	collection := s.client.Database(databaseName).Collection(accountsCollection)
 
+	s.log.Infof("Updating %v accounts of mongo repo coll %s", len(accounts), collection.Name())
 	updatesSessCtx, cancel := context.WithTimeout(ctx, time.Second*15)
 	defer cancel()
 	for _, account := range accounts {
@@ -25,6 +26,7 @@ func (s *Storage) UpdateAccounts(ctx context.Context, accounts []updating.Accoun
 			bson.D{{"$set", bson.D{{"balance", account.Balance}}}},
 		)
 		if updtErr != nil || result.ModifiedCount == 0 {
+			s.log.Errorf("Failed to update account %s", account.ID)
 			return fmt.Errorf("failed to update account %s", id)
 		}
 	}

@@ -14,16 +14,20 @@ func (s *Storage) GetAccountByID(ctx context.Context, id string) (listing.Accoun
 	queryContext, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
+	s.log.Infof("Retrieving account %v to mongodb repo coll %s", id, collection.Name())
 	var account Account
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
+		s.log.Errorf("Err when serializing id %s to ObjectID", id)
 		return listing.Account{}, ErrNoAccountWasFound
 	}
 	result := collection.FindOne(queryContext, bson.D{{"_id", oid}})
 	if err := result.Decode(&account); err != nil {
 		if err == mongo.ErrNoDocuments {
-			err = ErrNoAccountWasFound
+			s.log.Errorf("No account was found with id %s", id)
+			return listing.Account{}, ErrNoAccountWasFound
 		}
+		s.log.Errorf("Unexpected err %v when retrieving account %s", err, id)
 		return listing.Account{}, err
 	}
 	return listing.Account{
@@ -42,11 +46,14 @@ func (s *Storage) GetAccountByCPF(ctx context.Context, cpf string) (listing.Acco
 	defer cancel()
 
 	var account Account
+	s.log.Infof("Retrieving account of cpf %v to mongodb repo coll %s", cpf, collection.Name())
 	result := collection.FindOne(queryContext, bson.D{{"cpf", cpf}})
 	if err := result.Decode(&account); err != nil {
 		if err == mongo.ErrNoDocuments {
-			err = ErrNoAccountWasFound
+			s.log.Errorf("No account was found with cpf %s", cpf)
+			return listing.Account{}, ErrNoAccountWasFound
 		}
+		s.log.Errorf("Unexpected err %v when retrieving account of cpf %s", err, cpf)
 		return listing.Account{}, err
 	}
 	return listing.Account{
@@ -65,13 +72,16 @@ func (s *Storage) GetAccounts(ctx context.Context) ([]listing.Account, error) {
 	queryContext, cancel := context.WithTimeout(ctx, time.Second*15)
 	defer cancel()
 
+	s.log.Infof("Retrieving all accounts of mongodb repo coll %s", accountsCollection)
 	cursor, err := s.client.Database(databaseName).Collection(accountsCollection).Find(queryContext, bson.D{})
 	if err != nil {
+		s.log.Errorf("Unexpected err %v when retrieving accounts", err)
 		return accounts, err
 	}
 	defer func() {
 		err = cursor.Close(queryContext)
 		if err != nil {
+			s.log.Panicf("Err %v occurred when closing cursor", err)
 			panic(err)
 		}
 	}()
@@ -79,7 +89,7 @@ func (s *Storage) GetAccounts(ctx context.Context) ([]listing.Account, error) {
 	for cursor.Next(queryContext) {
 		var a Account
 		if err = cursor.Decode(&a); err != nil {
-			// TODO Log err
+			s.log.Errorf("Err %v occurred when decoding account from mongo repo", err)
 			continue
 		}
 
@@ -100,21 +110,24 @@ func (s *Storage) GetTransfersByKey(ctx context.Context, key string, value strin
 	queryContext, cancel := context.WithTimeout(ctx, time.Second*15)
 	defer cancel()
 
+	s.log.Infof("Retrieving transfers by %s with value %s of mongodb repo coll %s", key, value, transfersCollection)
 	transfers := make([]listing.Transfer, 0)
 	cur, err := s.getDocumentsByKey(queryContext, transfersCollection, key, value)
 	func() {
 		err = cur.Close(queryContext)
 		if err != nil {
+			s.log.Panicf("Err %v occurred when closing cursor", err)
 			panic(err)
 		}
 	}()
 	if err != nil {
+		s.log.Errorf("Err %v occurred when retrieving transfers by %s with value %s", err, key, value)
 		return transfers, err
 	}
 	for cur.Next(queryContext) {
 		var t Transfer
 		if err = cur.Decode(&t); err != nil {
-			//TODO Log err
+			s.log.Errorf("Err %v occurred when decoding transfer from mongo repo", err)
 			continue
 		}
 
@@ -130,7 +143,7 @@ func (s *Storage) GetTransfersByKey(ctx context.Context, key string, value strin
 }
 
 func (s *Storage) getDocumentsByKey(ctx context.Context, collName string, key string, value string) (*mongo.Cursor, error) {
-	cursor, err := s.client.Database(databaseName).Collection(collName).Find(ctx, bson.D{{key, value}})
+	cursor, err := s.client.Database(databaseName).Collection(collName).Find(ctx, bson.M{key: value})
 	if err != nil {
 		curErr := cursor.Close(ctx)
 		if curErr != nil {
