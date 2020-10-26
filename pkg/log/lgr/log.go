@@ -9,6 +9,10 @@ func NewDefaultLogger() *logrus.Logger {
 	var log = logrus.New()
 	setLogLevelByEnv(log)
 	log.SetReportCaller(true)
+	log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+		PadLevelText:  true,
+	})
 	return log
 }
 
