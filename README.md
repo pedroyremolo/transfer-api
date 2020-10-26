@@ -60,7 +60,7 @@ $ docker-compose up --build -d
 ```
 
 ## Licença
- A aplicação está sobe a licença [MIT](https://choosealicense.com/licenses/mit/)
+ A aplicação está sob a licença [MIT](https://choosealicense.com/licenses/mit/)
  
 ## Créditos
 
