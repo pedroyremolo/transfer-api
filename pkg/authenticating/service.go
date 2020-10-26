@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/pedroyremolo/transfer-api/pkg/log/lgr"
+	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -27,45 +29,56 @@ type Gatekeeper interface {
 }
 
 type service struct {
-	r Repository
-	g Gatekeeper
+	r   Repository
+	g   Gatekeeper
+	log *logrus.Logger
 }
 
 func NewService(repository Repository, gatekeeper Gatekeeper) Service {
 	return &service{
 		repository,
 		gatekeeper,
+		lgr.NewDefaultLogger(),
 	}
 }
 
 func (s *service) Sign(ctx context.Context, login Login, secretDigest string, clientID string) (Token, error) {
+	s.log.Infof("Signing token to clientID %s", clientID)
 	secret := []byte(fmt.Sprintf(`"%s"`, login.Secret))
 	if err := bcrypt.CompareHashAndPassword([]byte(secretDigest), secret); err != nil {
+		s.log.Errorf("Err %v occurred when validating login secret", err)
 		return Token{}, InvalidLoginErr
 	}
 
 	token, err := s.g.Sign(clientID)
 	if err != nil {
+		s.log.Errorf("Err %v occurred when gatekeeper signs token", err)
 		return Token{}, InvalidLoginErr
 	}
 
 	err = s.r.AddToken(ctx, token)
 	if err != nil {
+		s.log.Errorf("Err %v occurred when repo tried to add token", err)
 		return Token{}, err
 	}
 
+	s.log.Infof("Successfully signed token %v", token)
 	return token, nil
 }
 
 func (s *service) Verify(ctx context.Context, tokenDigest string) (Token, error) {
+	s.log.Infof("Verifying tokenDigest %v", tokenDigest)
 	token, err := s.g.Verify(tokenDigest)
 	if err != nil {
+		s.log.Errorf("Err %v occurred when gatekeeper verified tokenDigest %v", err, tokenDigest)
 		return Token{}, err
 	}
 
 	_, err = s.r.GetTokenByID(ctx, *token.ID)
 	if err != nil {
+		s.log.Errorf("Err %v when retrieving token %v from repository", err, token)
 		return Token{}, err
 	}
+	s.log.Infof("Token %v successfully verified", token)
 	return token, nil
 }

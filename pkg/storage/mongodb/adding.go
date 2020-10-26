@@ -12,6 +12,7 @@ func (s *Storage) AddAccount(ctx context.Context, account adding.Account) (strin
 	insertionCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
+	s.log.Infof("Adding account %v to mongodb repo coll %s", account, collection.Name())
 	dbAccount := Account{
 		ID:        primitive.NewObjectID(),
 		Name:      string(account.Name),
@@ -23,7 +24,7 @@ func (s *Storage) AddAccount(ctx context.Context, account adding.Account) (strin
 
 	oid, err := collection.InsertOne(insertionCtx, dbAccount)
 	if err != nil {
-		// TODO Err logging
+		s.log.Errorf("CPF %s already exists in our repo", dbAccount.CPF)
 		return "", ErrCPFAlreadyExists
 	}
 	return oid.InsertedID.(primitive.ObjectID).Hex(), err
@@ -34,17 +35,20 @@ func (s *Storage) AddTransfer(ctx context.Context, transfer adding.Transfer) (st
 	insertionCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
+	s.log.Infof("Adding transfer %v to mongodb repo coll %s", transfer, collection.Name())
+	originOID, _ := primitive.ObjectIDFromHex(transfer.OriginAccountID)
+	transferOID, _ := primitive.ObjectIDFromHex(transfer.DestinationAccountID)
 	dbTransfer := Transfer{
 		ID:                   primitive.NewObjectID(),
-		OriginAccountID:      transfer.OriginAccountID,
-		DestinationAccountID: transfer.DestinationAccountID,
+		OriginAccountID:      originOID,
+		DestinationAccountID: transferOID,
 		Amount:               transfer.Amount,
 		CreatedAt:            transfer.CreatedAt,
 	}
 
 	oid, err := collection.InsertOne(insertionCtx, dbTransfer)
 	if err != nil {
-		// TODO Err logging
+		s.log.Errorf("Unexpected err when adding transfer %s of origin account %s", dbTransfer.ID, dbTransfer.OriginAccountID)
 		return "", err
 	}
 	return oid.InsertedID.(primitive.ObjectID).Hex(), err

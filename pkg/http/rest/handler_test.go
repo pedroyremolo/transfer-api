@@ -263,8 +263,8 @@ func TestLogin(t *testing.T) {
 			listingService: &lm.MockService{
 				Err: mongodb.ErrNoAccountWasFound,
 			},
-			expectedResponse: `{"status_code":401,"message":"it seems your login credentials are invalid, verify them and try again"}`,
-			expectedStatus:   http.StatusUnauthorized,
+			expectedResponse: `{"status_code":403,"message":"it seems your login credentials are invalid, verify them and try again"}`,
+			expectedStatus:   http.StatusForbidden,
 		},
 		{
 			name:        "When cpf credential is in our repository, but password is invalid",
@@ -275,8 +275,8 @@ func TestLogin(t *testing.T) {
 			authService: &aum.MockService{
 				Err: authenticating.InvalidLoginErr,
 			},
-			expectedResponse: `{"status_code":401,"message":"it seems your login credentials are invalid, verify them and try again"}`,
-			expectedStatus:   http.StatusUnauthorized,
+			expectedResponse: `{"status_code":403,"message":"it seems your login credentials are invalid, verify them and try again"}`,
+			expectedStatus:   http.StatusForbidden,
 		},
 		{
 			name:             "When payload is invalid",

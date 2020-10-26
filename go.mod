@@ -11,6 +11,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/klauspost/compress v1.11.1 // indirect
 	github.com/magefile/mage v1.10.0 // indirect
+	github.com/sirupsen/logrus v1.7.0
 	go.mongodb.org/mongo-driver v1.4.2
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
 	golang.org/x/sync v0.0.0-20201008141435-b3e1573b7520 // indirect

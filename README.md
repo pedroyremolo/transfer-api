@@ -21,6 +21,7 @@ gerenciamento das mesmas.
 - [httprouter](https://github.com/julienschmidt/httprouter) 1.3.0
 - [crypto](https://golang.org/x/crypto) 0.0.0-20201016220609-9e8e0b390897
 - [jwt](https://github.com/gbrlsnchs/jwt) 3.0.0
+- [logrus](https://github.com/sirupsen/logrus) 1.7.0
 
 Para baixa-las, com Go instalado na sua máquina:
 ```bash
@@ -29,14 +30,19 @@ $ go mod download
 
 ## Como usar
 
-A aplicação possui distribuição via Docker, e possui um arquivo docker-compose, sendo este o modo mais fácil de 
-executa-la localmente.
+A aplicação possui distribuição via [Docker](Dockerfile), e possui um arquivo
+[docker-compose](docker-compose.yml), sendo este o modo mais fácil de executa-la 
+localmente.
+
+Além disso, possui uma especificação [OpenAPI 3](https://swagger.io/specification/)
+através do arquivo [openapi.yml](openapi.yml).
 
 A mesma é gerenciada via variáveis de ambiente, segue abaixo a tabela:
 
 | Nome                      | Descrição                                                  |
 |---------------------------|------------------------------------------------------------|
 | APP_PORT                  | Porta a ser escutada pela aplicação para novas requisições |
+| APP_LOG_LEVEL             | Nível de log estruturado da aplicação                      |
 | APP_DOCUMENT_DB_HOST      | Host da instância do MongoDB                               |
 | APP_DOCUMENT_DB_PORT      | Porta da instância do MongoDB                              |
 | APP_DOCUMENT_DB_USERNAME  | Usuário da instância do MongoDB                            |

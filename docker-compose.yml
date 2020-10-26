@@ -8,6 +8,7 @@ services:
       - "8090:8090"
     environment:
       - APP_PORT=8090
+      - APP_LOG_LEVEL=INFO
       - APP_DOCUMENT_DB_HOST=mongo
       - APP_DOCUMENT_DB_PORT=27017
       - APP_DOCUMENT_DB_USERNAME=root

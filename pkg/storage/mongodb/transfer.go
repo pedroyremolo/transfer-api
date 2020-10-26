@@ -7,8 +7,8 @@ import (
 
 type Transfer struct {
 	ID                   primitive.ObjectID `bson:"_id"`
-	OriginAccountID      string             `bson:"account_origin_id"`
-	DestinationAccountID string             `bson:"destination_origin_id"`
+	OriginAccountID      primitive.ObjectID `bson:"account_origin_id"`
+	DestinationAccountID primitive.ObjectID `bson:"account_destination_id"`
 	Amount               float64            `bson:"amount"`
 	CreatedAt            time.Time          `bson:"created_at"`
 }

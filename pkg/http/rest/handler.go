@@ -9,10 +9,11 @@ import (
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
+	"github.com/pedroyremolo/transfer-api/pkg/log/lgr"
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
 	"github.com/pedroyremolo/transfer-api/pkg/transferring"
 	"github.com/pedroyremolo/transfer-api/pkg/updating"
-	"log"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 )
@@ -26,9 +27,11 @@ type ErrorResponse struct {
 	Message    string `json:"message"`
 }
 
+var log *logrus.Logger
+
 func Handler(a adding.Service, l listing.Service, auth authenticating.Service, t transferring.Service, u updating.Service) http.Handler {
 	router := httprouter.New()
-
+	log = lgr.NewDefaultLogger()
 	router.POST("/accounts", addAccount(a))
 	router.GET("/accounts", getAccounts(l))
 	router.GET("/accounts/:id/balance", getAccountBalanceByID(l))
@@ -42,7 +45,7 @@ func Handler(a adding.Service, l listing.Service, auth authenticating.Service, t
 }
 
 func setJSONError(err error, status int, w http.ResponseWriter) {
-	log.Println(err.Error())
+	log.Errorf("Set err %v as JSON", err)
 	var jsonDecodeErr *json.UnmarshalTypeError
 	var message string
 	if errors.As(err, &jsonDecodeErr) {
@@ -145,7 +148,7 @@ func login(auth authenticating.Service, l listing.Service) func(w http.ResponseW
 		account, err := l.GetAccountByCPF(ctx, login.CPF)
 		if err != nil {
 			if err.Error() == mongodb.ErrNoAccountWasFound.Error() {
-				setJSONError(authenticating.InvalidLoginErr, http.StatusUnauthorized, w)
+				setJSONError(authenticating.InvalidLoginErr, http.StatusForbidden, w)
 				return
 			}
 			setJSONError(err, http.StatusInternalServerError, w)
@@ -155,7 +158,7 @@ func login(auth authenticating.Service, l listing.Service) func(w http.ResponseW
 		token, err = auth.Sign(ctx, login, account.Secret, account.ID)
 		if err != nil {
 			if err.Error() == authenticating.InvalidLoginErr.Error() {
-				setJSONError(authenticating.InvalidLoginErr, http.StatusUnauthorized, w)
+				setJSONError(authenticating.InvalidLoginErr, http.StatusForbidden, w)
 				return
 			}
 			setJSONError(err, http.StatusInternalServerError, w)
@@ -240,22 +243,23 @@ func getAccountTransfers(auth authenticating.Service, l listing.Service) func(w 
 func verifyTokenFromAuthHeader(r *http.Request, auth authenticating.Service, ctx context.Context) (authenticating.Token, error) {
 	authHd := r.Header.Get("Authorization")
 	if authHd == "" {
-		// TODO Log Err
+		log.Error("Empty Authorization header")
 		return authenticating.Token{}, authenticating.ProtectedRouteErr
 	}
 	hdSpaceIndex := strings.Index(authHd, " ")
 	if hdSpaceIndex == -1 {
-		// TODO Log Err
+		log.Error("Authorization header is malformed")
 		return authenticating.Token{}, authenticating.ProtectedRouteErr
 	}
 	authType, tokenDigest := authHd[:hdSpaceIndex], authHd[strings.LastIndex(authHd, " ")+1:]
 	if authType != "Bearer" {
-		// TODO Log Err
+		log.Error("Authorization header is not of type Bearer")
 		return authenticating.Token{}, authenticating.ProtectedRouteErr
 	}
 
 	token, err := auth.Verify(ctx, tokenDigest)
 	if err != nil {
+		log.Errorf("Err %v when trying to verify tokenDigest %s", err, tokenDigest)
 		return authenticating.Token{}, authenticating.ProtectedRouteErr
 	}
 	return token, err
