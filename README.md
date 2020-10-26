@@ -21,6 +21,7 @@ gerenciamento das mesmas.
 - [httprouter](https://github.com/julienschmidt/httprouter) 1.3.0
 - [crypto](https://golang.org/x/crypto) 0.0.0-20201016220609-9e8e0b390897
 - [jwt](https://github.com/gbrlsnchs/jwt) 3.0.0
+- [logrus](https://github.com/sirupsen/logrus) 1.7.0
 
 Para baixa-las, com Go instalado na sua máquina:
 ```bash
