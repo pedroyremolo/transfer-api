@@ -46,8 +46,8 @@ func TestService_UpdateAccounts(t *testing.T) {
 }
 
 type mockRepository struct {
-	accounts    []Account
 	expectedErr error
+	accounts    []Account
 }
 
 func (m *mockRepository) UpdateAccounts(_ context.Context, accounts []Account) error {

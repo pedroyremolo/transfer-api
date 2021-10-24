@@ -2,9 +2,10 @@ package adding
 
 import (
 	"context"
+	"time"
+
 	"github.com/pedroyremolo/transfer-api/pkg/log/lgr"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 type Service interface {

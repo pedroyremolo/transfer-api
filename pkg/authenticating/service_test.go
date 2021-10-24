@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"golang.org/x/crypto/bcrypt"
 	"reflect"
 	"testing"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestService_Sign(t *testing.T) {
@@ -99,7 +100,7 @@ func TestService_Sign(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			s := NewService(&tc.repository, &tc.gatekeeper)
-			token, err := s.Sign(nil, tc.args.login, tc.args.secretDigest, tc.args.clientID)
+			token, err := s.Sign(context.TODO(), tc.args.login, tc.args.secretDigest, tc.args.clientID)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("Sign() error = %v, wantErr %v", err, tc.wantErr)
 				return

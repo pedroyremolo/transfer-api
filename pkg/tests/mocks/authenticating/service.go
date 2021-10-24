@@ -2,6 +2,7 @@ package authenticating
 
 import (
 	"context"
+
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 )
 

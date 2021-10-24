@@ -2,11 +2,12 @@ package mongodb
 
 import (
 	"context"
+	"time"
+
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"time"
 )
 
 func (s *Storage) GetAccountByID(ctx context.Context, id string) (listing.Account, error) {
@@ -21,7 +22,7 @@ func (s *Storage) GetAccountByID(ctx context.Context, id string) (listing.Accoun
 		s.log.Errorf("Err when serializing id %s to ObjectID", id)
 		return listing.Account{}, ErrNoAccountWasFound
 	}
-	result := collection.FindOne(queryContext, bson.D{{"_id", oid}})
+	result := collection.FindOne(queryContext, bson.D{{Key: "_id", Value: oid}})
 	if err := result.Decode(&account); err != nil {
 		if err == mongo.ErrNoDocuments {
 			s.log.Errorf("No account was found with id %s", id)
@@ -47,7 +48,7 @@ func (s *Storage) GetAccountByCPF(ctx context.Context, cpf string) (listing.Acco
 
 	var account Account
 	s.log.Infof("Retrieving account of cpf %v to mongodb repo coll %s", cpf, collection.Name())
-	result := collection.FindOne(queryContext, bson.D{{"cpf", cpf}})
+	result := collection.FindOne(queryContext, bson.D{{Key: "cpf", Value: cpf}})
 	if err := result.Decode(&account); err != nil {
 		if err == mongo.ErrNoDocuments {
 			s.log.Errorf("No account was found with cpf %s", cpf)

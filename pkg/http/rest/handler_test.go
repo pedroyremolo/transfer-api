@@ -5,6 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/listing"
@@ -15,11 +21,6 @@ import (
 	tm "github.com/pedroyremolo/transfer-api/pkg/tests/mocks/transferring"
 	um "github.com/pedroyremolo/transfer-api/pkg/tests/mocks/updating"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
 )
 
 func TestHandler(t *testing.T) {

@@ -2,9 +2,10 @@ package mongodb
 
 import (
 	"context"
+	"time"
+
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"time"
 )
 
 func (s *Storage) AddAccount(ctx context.Context, account adding.Account) (string, error) {

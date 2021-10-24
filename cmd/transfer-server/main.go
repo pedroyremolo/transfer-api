@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"strconv"
+
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/gatekeeper/jwt"
@@ -12,9 +16,6 @@ import (
 	"github.com/pedroyremolo/transfer-api/pkg/storage/mongodb"
 	"github.com/pedroyremolo/transfer-api/pkg/transferring"
 	"github.com/pedroyremolo/transfer-api/pkg/updating"
-	"net/http"
-	"os"
-	"strconv"
 )
 
 func main() {
