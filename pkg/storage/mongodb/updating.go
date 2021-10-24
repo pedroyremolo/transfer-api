@@ -3,10 +3,11 @@ package mongodb
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/pedroyremolo/transfer-api/pkg/updating"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"time"
 )
 
 func (s *Storage) UpdateAccounts(ctx context.Context, accounts []updating.Account) error {
@@ -22,8 +23,8 @@ func (s *Storage) UpdateAccounts(ctx context.Context, accounts []updating.Accoun
 		}
 		result, updtErr := collection.UpdateOne(
 			updatesSessCtx,
-			bson.D{{"_id", id}},
-			bson.D{{"$set", bson.D{{"balance", account.Balance}}}},
+			bson.D{{Key: "_id", Value: id}},
+			bson.D{{Key: "$set", Value: bson.D{{Key: "balance", Value: account.Balance}}}},
 		)
 		if updtErr != nil || result.ModifiedCount == 0 {
 			s.log.Errorf("Failed to update account %s", account.ID)

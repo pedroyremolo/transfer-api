@@ -1,9 +1,10 @@
 package jwt
 
 import (
-	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"reflect"
 	"testing"
+
+	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 )
 
 func TestGatekeeper_Sign(t *testing.T) {

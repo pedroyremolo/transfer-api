@@ -1,8 +1,9 @@
 package lgr
 
 import (
-	"github.com/sirupsen/logrus"
 	"os"
+
+	"github.com/sirupsen/logrus"
 )
 
 func NewDefaultLogger() *logrus.Logger {

@@ -2,6 +2,7 @@ package updating
 
 import (
 	"context"
+
 	"github.com/pedroyremolo/transfer-api/pkg/log/lgr"
 	"github.com/sirupsen/logrus"
 )

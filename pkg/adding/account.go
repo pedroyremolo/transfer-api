@@ -3,10 +3,11 @@ package adding
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/Nhanderu/brdoc"
 	"github.com/pedroyremolo/transfer-api/pkg/log/lgr"
 	"golang.org/x/crypto/bcrypt"
-	"time"
 )
 
 // Account is the representation of an account to be added

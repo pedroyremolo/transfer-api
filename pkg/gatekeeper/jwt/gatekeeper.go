@@ -1,13 +1,14 @@
 package jwt
 
 import (
+	"os"
+	"time"
+
 	"github.com/gbrlsnchs/jwt/v3"
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"github.com/pedroyremolo/transfer-api/pkg/log/lgr"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"os"
-	"time"
 )
 
 type Gatekeeper struct {

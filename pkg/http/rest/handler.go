@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/pedroyremolo/transfer-api/pkg/adding"
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
@@ -14,8 +17,6 @@ import (
 	"github.com/pedroyremolo/transfer-api/pkg/transferring"
 	"github.com/pedroyremolo/transfer-api/pkg/updating"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"strings"
 )
 
 const (
@@ -180,7 +181,7 @@ func transfer(a adding.Service, auth authenticating.Service, l listing.Service, 
 		}
 
 		var transfer adding.Transfer
-		if err := decodeJSON(r, &transfer); err != nil {
+		if err = decodeJSON(r, &transfer); err != nil {
 			setJSONError(err, http.StatusBadRequest, w)
 			return
 		}

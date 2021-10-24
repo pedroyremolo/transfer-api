@@ -2,10 +2,11 @@ package transferring
 
 import (
 	"errors"
-	"github.com/pedroyremolo/transfer-api/pkg/log/lgr"
-	"github.com/sirupsen/logrus"
 	"math"
 	"math/big"
+
+	"github.com/pedroyremolo/transfer-api/pkg/log/lgr"
+	"github.com/sirupsen/logrus"
 )
 
 var ErrNotEnoughBalance = errors.New("not enough balance to execute this operation")

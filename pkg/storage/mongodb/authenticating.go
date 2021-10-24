@@ -2,11 +2,12 @@ package mongodb
 
 import (
 	"context"
+	"time"
+
 	"github.com/pedroyremolo/transfer-api/pkg/authenticating"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"time"
 )
 
 func (s *Storage) AddToken(ctx context.Context, token authenticating.Token) error {
