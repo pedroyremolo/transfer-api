@@ -2,6 +2,7 @@ package lgr
 
 import (
 	"os"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -18,11 +19,13 @@ func NewDefaultLogger() *logrus.Logger {
 }
 
 func setLogLevelByEnv(log *logrus.Logger) {
-	logLevel := os.Getenv("APP_LOG_LEVEL")
+	logLevel := strings.ToLower(os.Getenv("APP_LOG_LEVEL"))
 	switch logLevel {
-	case "INFO":
+	case logrus.DebugLevel.String():
+		log.SetLevel(logrus.DebugLevel)
+	case logrus.InfoLevel.String():
 		log.SetLevel(logrus.InfoLevel)
-	case "ERROR":
+	case logrus.ErrorLevel.String():
 		log.SetLevel(logrus.ErrorLevel)
 	default:
 		log.SetLevel(logrus.ErrorLevel)
